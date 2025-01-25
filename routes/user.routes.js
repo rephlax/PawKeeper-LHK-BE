@@ -1,23 +1,79 @@
 const router = require("express").Router();
 const bcrypt = require("bcryptjs");
-const token = require("jsonwebtoken");
+const jwt = require("jsonwebtoken");
 const UserModel = require("../models/User.model");
 
-router.post("/signup", async (req, res) => {
-    try {
-        const salt = bcrypt.genSaltSync(12);
-        const hashedPassword = bcrypt.hashSync(req.body.password, salt);
-        const hashedUser = {
-            email: req.body.email,
-            password: hashedPassword
-        }
+router.get("/", async (req, res) => {
+  try {
+    const allUsers = await UserModel.find();
+    res.status(200).json(allUsers);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: `${error}` });
+  }
+});
 
-        const createdUser = await UserModel.create(hashedUser)
-        console.log(createdUser)
-        res.status(201).json({message: "User created Sucessfuly", createdUser})
-    } catch (error) {
-        console.log(error)
-        res.status(500).json({message: `${error}`})
+router.post("/signup", async (req, res) => {
+  try {
+    const salt = bcrypt.genSaltSync(12);
+    const hashedPassword = bcrypt.hashSync(req.body.password, salt);
+    const hashedUser = {
+      email: req.body.email,
+      password: hashedPassword,
+      username: req.body.username,
+      ownedPets: req.body.ownedPets,
+      profilePicture: req.body.profilePicture,
+      rate: req.body.rate,
+      location: req.body.location,
+      rating: req.body.rating,
+      reviews: req.body.reviews,
+    };
+    console.log(req.body);
+    const createdUser = await UserModel.create(hashedUser);
+    console.log(createdUser);
+    res.status(201).json({ message: "User created Sucessfuly", createdUser });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: `${error}` });
+  }
+});
+
+router.post("/login", async (req, res) => {
+  try {
+    const foundUser = await UserModel.findOne({ email: req.body.email });
+    if (!foundUser) {
+      return res.status(404).json({ message: "User not found" });
+    } else {
+      const isValidPassword = bcrypt.compareSync(
+        req.body.password,
+        foundUser.password
+      );
+
+      if (isValidPassword) {
+        const data = { _id: foundUser._id, email: foundUser.email };
+        const authToken = jwt.sign(data, process.env.TOKEN_KEY, {
+          algorithm: "HS256",
+          expiresIn: "24h",
+        });
+        res.status(200).json({message: "here is the token", authToken})
+      } else {
+        res.status(403).json({message: "Invalid Crecentials"})
+      }
     }
-})
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: `${error}` });
+  }
+});
+
+router.delete("/delete-user/:userId", async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const deletedUser = await UserModel.findByIdAndDelete(userId);
+    res.status(200).json({ message: "User Sucessfuly deleted", deletedUser });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: `${error}` });
+  }
+});
 module.exports = router;

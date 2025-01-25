@@ -19,7 +19,23 @@ const userSchema = new Schema(
     username: {type: String, unique: true},
     profilePicture: {type: String},
     rate: {type: Number},
-    location: {type:{type: String}, coordinates: [Number]},
+    location: {
+    type: {
+      type: String,
+      required: [true, 'Location type is required.'], // Ensures "type" is provided
+      enum: ['Point'] // Validates that "type" is "Point"
+    },
+    coordinates: {
+      type: [Number], // Array of numbers
+      required: [true, 'Coordinates are required.'], // Ensures "coordinates" are provided
+      validate: {
+        validator: function (value) {
+          return value.length === 2; // Validates exactly 2 coordinates
+        },
+        message: 'Coordinates must have exactly two values: [longitude, latitude].'
+      }
+    }
+  },
     rating: {type: Number},
     reviews: {type: [String]}
   },
