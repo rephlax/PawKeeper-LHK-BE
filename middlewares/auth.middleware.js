@@ -9,6 +9,7 @@ try {
         const Token = req.headers.authorization.split(" ")[1];
         const data = jwt.verify(Token, process.env.TOKEN_KEY);
         req.payload = data;
+        console.log(data)
         next();
       } else {
         res.status(403).json({ message: "Incorrect Headers" });

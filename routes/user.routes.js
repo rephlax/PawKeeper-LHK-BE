@@ -28,6 +28,7 @@ router.post("/signup", async (req, res) => {
       location: req.body.location,
       rating: req.body.rating,
       reviews: req.body.reviews,
+      sitter: req.body.sitter
     };
     console.log(req.body);
     const createdUser = await UserModel.create(hashedUser);
@@ -54,9 +55,10 @@ router.post("/login", async (req, res) => {
         const data = { _id: foundUser._id, email: foundUser.email };
         const authToken = jwt.sign(data, process.env.TOKEN_KEY, {
           algorithm: "HS256",
-          expiresIn: "5m",
+          expiresIn: "10d",
         });
         res.status(200).json({ message: "here is the token", authToken });
+        //TODO: add navigation here after sucessful login
       } else {
         res.status(403).json({ message: "Invalid Crecentials" });
       }
