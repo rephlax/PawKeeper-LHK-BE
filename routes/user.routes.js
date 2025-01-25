@@ -2,6 +2,7 @@ const router = require("express").Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const UserModel = require("../models/User.model");
+const isAuthenticated = require("../middlewares/auth.middleware");
 
 router.get("/", async (req, res) => {
   try {
@@ -53,11 +54,11 @@ router.post("/login", async (req, res) => {
         const data = { _id: foundUser._id, email: foundUser.email };
         const authToken = jwt.sign(data, process.env.TOKEN_KEY, {
           algorithm: "HS256",
-          expiresIn: "24h",
+          expiresIn: "5m",
         });
-        res.status(200).json({message: "here is the token", authToken})
+        res.status(200).json({ message: "here is the token", authToken });
       } else {
-        res.status(403).json({message: "Invalid Crecentials"})
+        res.status(403).json({ message: "Invalid Crecentials" });
       }
     }
   } catch (error) {
@@ -66,7 +67,20 @@ router.post("/login", async (req, res) => {
   }
 });
 
-router.delete("/delete-user/:userId", async (req, res) => {
+router.patch("/update-user/:userId", isAuthenticated, async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const foundUser = UserModel.findByIdAndUpdate(userId, req.body, {
+      new: true,
+    });
+    res.status(200).json({ message: "User updated successfully", foundUser });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: `${error}` });
+  }
+});
+
+router.delete("/delete-user/:userId", isAuthenticated, async (req, res) => {
   const { userId } = req.params;
   try {
     const deletedUser = await UserModel.findByIdAndDelete(userId);
