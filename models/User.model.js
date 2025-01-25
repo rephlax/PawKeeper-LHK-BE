@@ -1,6 +1,6 @@
 const { Schema, model } = require("mongoose");
 
-// TODO: Please make sure you edit the User model to whatever makes sense in this case
+
 const userSchema = new Schema(
   {
     email: {
@@ -37,7 +37,10 @@ const userSchema = new Schema(
     }
   },
     rating: {type: Number},
-    reviews: {type: [String]}
+    reviews: {type: [Schema.Types.ObjectId], 
+      ref: "review"
+    }, 
+    sitter: {type: Boolean, required: true}
   },
   // {
   //   // this second object adds extra properties: `createdAt` and `updatedAt`    
