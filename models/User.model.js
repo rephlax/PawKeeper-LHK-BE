@@ -37,9 +37,14 @@ const userSchema = new Schema(
     }
   },
     rating: {type: Number},
-    reviews: {type: [Schema.Types.ObjectId], 
+    reviewsReceived: {
+      type: [Schema.Types.ObjectId], 
       ref: "review"
-    }, 
+    },
+    reviewsGiven: {
+      type: [Schema.Types.ObjectId], 
+      ref: "review"
+    },
     sitter: {type: Boolean, required: true}
   },
   // {
