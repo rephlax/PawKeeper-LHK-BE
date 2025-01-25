@@ -16,7 +16,10 @@ const userSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "pet"
     },
-    username: {type: String, unique: true},
+    username: {
+      type: String,
+      unique: true
+      },
     profilePicture: {type: String},
     rate: {type: Number},
     location: {
