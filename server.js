@@ -4,52 +4,78 @@ const cors = require("cors");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
-const registerSocketHandlers = require('./socket-handlers');
 require("dotenv").config();
 
 const PORT = process.env.PORT || 5005;
 const httpServer = createServer(app);
 
+// Store connected users and rooms
+const connectedUsers = new Map();
+const activeRooms = new Map();
+
 const io = new Server(httpServer, {
     cors: {
-        origin: process.env.ORIGIN || "http://localhost:3000",
-        credentials: true
+        origin: process.env.ORIGIN || "http://localhost:5173",
+        credentials: true,
+        methods: ["GET", "POST"]
     }
 });
 
 app.use(express.json());
 app.use(cors({
-    origin: process.env.ORIGIN || "http://localhost:3000",
+    origin: process.env.ORIGIN || "http://localhost:5173",
     credentials: true
 }));
 
-io.use(async (socket, next) => {
-    try {
-        const token = socket.handshake.auth.token;
-        if (!token) {
-            return next(new Error("Authentication required - No token provided"));
-        }
-        
-        const decoded = jwt.verify(token, process.env.TOKEN_KEY);
-        socket.user = decoded;
-        next();
-        
-    } catch (error) {
-        console.log("Socket authentication error:", error.message);
-        next(new Error("Authentication failed - Invalid token"));
-    }
-});
-
 io.on('connection', (socket) => {
-    console.log('User connected:', socket.user);
+    console.log('Client connected:', socket.id);
     
-    // Register all socket event handlers (chat)
-    registerSocketHandlers(io, socket);
-});
+    // Handle user registration
+    socket.on('register_user', (username) => {
+        console.log('User registered:', username);
+        connectedUsers.set(socket.id, { id: socket.id, username });
+        io.emit('users_list', Array.from(connectedUsers.values()));
+    });
+    
+    // Handle private chat requests
+    socket.on('start_private_chat', ({ targetUserId }) => {
+        const roomId = [socket.id, targetUserId].sort().join('-');
+        socket.join(roomId);
+        socket.to(targetUserId).emit('chat_invitation', {
+            roomId,
+            invitedBy: connectedUsers.get(socket.id)?.username
+        });
+    });
 
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ message: "Internal server error" });
+    // Handle chat invitations
+    socket.on('join_room', (roomId) => {
+        socket.join(roomId);
+        socket.emit('private_chat_started', roomId);
+    });
+
+    // Handle messages
+    socket.on('send_message', (data) => {
+        const sender = connectedUsers.get(socket.id);
+        const messageData = {
+            id: Date.now(),
+            text: data.content,
+            sender: sender?.username || 'Anonymous',
+            roomId: data.roomId,
+            timestamp: new Date()
+        };
+
+        if (data.roomId) {
+            io.to(data.roomId).emit('receive_message', messageData);
+        } else {
+            io.emit('receive_message', messageData);
+        }
+    });
+
+    socket.on('disconnect', () => {
+        connectedUsers.delete(socket.id);
+        io.emit('users_list', Array.from(connectedUsers.values()));
+        console.log('Client disconnected:', socket.id);
+    });
 });
 
 httpServer.listen(PORT, () => {

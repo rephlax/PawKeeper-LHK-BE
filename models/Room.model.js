@@ -2,12 +2,12 @@ const { Schema, model } = require("mongoose");
 
 const chatRoomSchema = new Schema({
   participants: [{ 
-    type: mongoose.Schema.Types.ObjectId, 
+    type: Schema.Types.ObjectId, 
     ref: 'User',
     required: true 
   }],
   lastMessage: { 
-    type: mongoose.Schema.Types.ObjectId, 
+    type: Schema.Types.ObjectId, 
     ref: 'Message' 
   },
   updatedAt: { 
@@ -16,7 +16,7 @@ const chatRoomSchema = new Schema({
   },
   readBy: [{
     user: { 
-      type: mongoose.Schema.Types.ObjectId, 
+      type: Schema.Types.ObjectId, 
       ref: 'User' 
     },
     lastRead: { 
@@ -26,4 +26,4 @@ const chatRoomSchema = new Schema({
   }]
 });
 
-module.exports = mongoose.model('ChatRoom', chatRoomSchema);
+module.exports = model('ChatRoom', chatRoomSchema);
