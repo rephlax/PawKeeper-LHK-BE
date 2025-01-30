@@ -23,20 +23,21 @@ const userSchema = new Schema(
     profilePicture: {type: String},
     rate: {type: Number},
     location: {
+      //TODO: enable coordinates again
     type: {
       type: String,
-      required: [true, 'Location type is required.'], // Ensures "type" is provided
+      required: [false, 'Location type is required.'], // Ensures "type" is provided
       enum: ['Point'] // Validates that "type" is "Point"
     },
     coordinates: {
       type: [Number], // Array of numbers
-      required: [true, 'Coordinates are required.'], // Ensures "coordinates" are provided
-      validate: {
-        validator: function (value) {
-          return value.length === 2; // Validates exactly 2 coordinates
-        },
-        message: 'Coordinates must have exactly two values: [longitude, latitude].'
-      }
+      required: [false, 'Coordinates are required.'], // Ensures "coordinates" are provided
+      // validate: {
+      //   validator: function (value) {
+      //     return value.length === 2; // Validates exactly 2 coordinates
+      //   },
+      //   message: 'Coordinates must have exactly two values: [longitude, latitude].'
+      // }
     }
   },
     rating: {type: Number},
@@ -48,7 +49,7 @@ const userSchema = new Schema(
       type: [Schema.Types.ObjectId], 
       ref: "review"
     },
-    sitter: {type: Boolean, required: true}
+    sitter: {type: Boolean, default: false}
   },
   // {
   //   // this second object adds extra properties: `createdAt` and `updatedAt`    
