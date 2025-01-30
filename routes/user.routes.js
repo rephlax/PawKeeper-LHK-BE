@@ -57,8 +57,7 @@ router.post("/login", async (req, res) => {
           algorithm: "HS256",
           expiresIn: "10d",
         });
-        res.status(200).json({ message: "here is the token", authToken });
-        //TODO: add navigation here after sucessful login
+        res.status(200).json({ message: "here is the token", authToken });        
       } else {
         res.status(403).json({ message: "Invalid Crecentials" });
       }
@@ -92,4 +91,8 @@ router.delete("/delete-user/:userId", isAuthenticated, async (req, res) => {
     res.status(500).json({ message: `${error}` });
   }
 });
+
+router.get("/verify", isAuthenticated, async(req, res) => {
+res.status(200).json({message: "user is authenticated", currentUser: req.payload})
+})
 module.exports = router;
