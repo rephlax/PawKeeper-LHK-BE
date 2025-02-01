@@ -23,6 +23,12 @@ app.use(
   })
 );
 
+app.get('/debug-env', (req, res) => {
+  res.json({
+    origin: process.env.ORIGIN,
+    port: process.env.PORT
+  });
+});
 // 👇 Start handling routes here
 const indexRoutes = require("./routes/index.routes");
 app.use("/api", indexRoutes);

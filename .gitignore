@@ -23,4 +23,4 @@ ehthumbs.db
 .vscode/*
 
 .env.local
-.vercel
+.vercel.json
