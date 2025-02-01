@@ -13,7 +13,7 @@ const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
     cors: {
-        origin: 'https://pawkeeper-lhk-be.onrender.com',
+        origin: 'https://pawkeeper.netlify.app',
         credentials: true,
         methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
         allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
@@ -61,5 +61,5 @@ app.use((err, req, res, next) => {
 });
 
 httpServer.listen(PORT, () => {
-    console.log(`Server listening on http://localhost:${PORT}`);
+    console.log(`Server listening on port:${PORT}`);
 });
