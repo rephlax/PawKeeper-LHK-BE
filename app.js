@@ -10,8 +10,6 @@ const cors = require("cors");
 
 const app = express();
 
-require("./config")(app);
-
 const allowedOrigins = [
   'https://pawkeeper.netlify.app',
   'https://pawkeeper-lhk-be-production.up.railway.app',
@@ -30,6 +28,8 @@ app.use(
   })
 );
 
+require("./config")(app);
+
 app.get('/debug-env', (req, res) => {
   res.json({
     origin: process.env.ORIGIN,
@@ -46,6 +46,17 @@ app.use("/users", userRoutes);
 
 const reviewRoutes = require("./routes/review.routes");
 app.use("/reviews", reviewRoutes);
+
+app.use((err, req, res, next) => {
+  if (err.name === 'CORSError') {
+    res.status(403).json({ 
+      message: 'CORS error', 
+      error: err.message 
+    });
+  } else {
+    next(err);
+  }
+});
 
 require("./error-handling")(app);
 
