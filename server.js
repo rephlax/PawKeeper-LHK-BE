@@ -1,5 +1,5 @@
 console.log("Starting server...");
-const { app, allowedOrigins } = require("./app");  // Import allowedOrigins from app.js
+const { app } = require("./app");
 const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
@@ -13,7 +13,7 @@ const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
     cors: {
-        origin: allowedOrigins,
+        origin: 'https://pawkeeper-lhk-be.onrender.com',
         credentials: true,
         methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
         allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],

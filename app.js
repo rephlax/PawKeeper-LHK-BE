@@ -62,4 +62,4 @@ app.use((err, req, res, next) => {
 
 require("./error-handling")(app);
 
-module.exports = { app, allowedOrigins };
+module.exports = { app };
