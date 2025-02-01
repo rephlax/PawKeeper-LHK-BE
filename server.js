@@ -17,6 +17,7 @@ const allowedOrigins = [
     'https://pawkeeper.netlify.app',
     'https://paw-keeper-lhk-be.vercel.app',
     'http://localhost:5173',
+    'http://localhost:5005',
     process.env.ORIGIN
 ].filter(Boolean);
 
