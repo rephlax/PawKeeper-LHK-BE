@@ -16,7 +16,7 @@ const app = express();
 require("./config")(app);
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: process.env.ORIGIN,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     credentials: true, //allows for cookies and auth
     maxAge: 86400, //reduces server load by only caching for 24hours
