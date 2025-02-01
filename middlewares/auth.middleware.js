@@ -6,7 +6,7 @@ try {
         req.headers.authorization &&
         req.headers.authorization.split(" ")[0] === "Bearer"
       ) {
-        const Token = req.headers.authorization.split(" ")[1];
+        const Token = req.headers.authorization.split(" ")[1];        
         const data = jwt.verify(Token, process.env.TOKEN_KEY);
         req.payload = data;
         console.log(data)
