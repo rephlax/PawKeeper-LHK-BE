@@ -14,7 +14,7 @@ const httpServer = createServer(app);
 
 const allowedOrigins = [
     'https://pawkeeper.netlify.app',
-    'https://paw-keeper-lhk-be.vercel.app',
+    'https://pawkeeper-lhk-be-production.up.railway.app',
     'http://localhost:5173',
     'http://localhost:5005',
     process.env.ORIGIN
