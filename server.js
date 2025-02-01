@@ -12,7 +12,6 @@ require("dotenv").config();
 const PORT = process.env.PORT || 5005;
 const httpServer = createServer(app);
 
-// Define allowed origins for deployment
 const allowedOrigins = [
     'https://pawkeeper.netlify.app',
     'https://paw-keeper-lhk-be.vercel.app',
@@ -25,8 +24,11 @@ const io = new Server(httpServer, {
     cors: {
         origin: allowedOrigins,
         credentials: true,
-        methods: ["GET", "POST"]
-    }
+        methods: ["GET", "POST"],
+        allowedHeaders: ["authorization"]
+    },
+    path: '/socket.io',
+    transports: ['websocket', 'polling']
 });
 
 app.use(express.json());
