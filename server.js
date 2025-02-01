@@ -14,6 +14,7 @@ const httpServer = createServer(app);
 // Define allowed origins for deployment
 const allowedOrigins = [
     'https://pawkeeper.netlify.app',
+    'https://paw-keeper-lhk-be.vercel.app',
     process.env.ORIGIN
 ].filter(Boolean);
 
