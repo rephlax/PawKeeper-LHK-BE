@@ -25,10 +25,13 @@ const io = new Server(httpServer, {
         origin: allowedOrigins,
         credentials: true,
         methods: ["GET", "POST"],
-        allowedHeaders: ["authorization"]
+        allowedHeaders: ["authorization"],
+        allowUpgrades: true
     },
     path: '/socket.io',
-    transports: ['websocket', 'polling']
+    transports: ['polling', 'websocket'],
+    allowEIO3: true,
+    upgradeTimeout: 30000
 });
 
 app.use(express.json());
