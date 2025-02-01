@@ -5,21 +5,28 @@ require("dotenv").config();
 // ℹ️ Connects to the database
 require("./db");
 
-// Handles http requests (express is node js framework)
-// https://www.npmjs.com/package/express
 const express = require("express");
 const cors = require("cors");
 
 const app = express();
 
-// ℹ️ This function is getting exported from the config folder. It runs most pieces of middleware
 require("./config")(app);
+
+const allowedOrigins = [
+  'https://pawkeeper.netlify.app',
+  'https://pawkeeper-lhk-be-production.up.railway.app',
+  'http://localhost:5173',
+  'http://localhost:5005'
+];
+
 app.use(
   cors({
-    origin: process.env.ORIGIN,
+    origin: allowedOrigins,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    credentials: true, //allows for cookies and auth
-    maxAge: 86400, //reduces server load by only caching for 24hours
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    maxAge: 86400,
   })
 );
 
@@ -29,6 +36,7 @@ app.get('/debug-env', (req, res) => {
     port: process.env.PORT
   });
 });
+
 // 👇 Start handling routes here
 const indexRoutes = require("./routes/index.routes");
 app.use("/api", indexRoutes);
@@ -39,7 +47,6 @@ app.use("/users", userRoutes);
 const reviewRoutes = require("./routes/review.routes");
 app.use("/reviews", reviewRoutes);
 
-// ❗ To handle errors. Routes that don't exist or errors that you handle in specific routes
 require("./error-handling")(app);
 
-module.exports = app;
+module.exports = { app, allowedOrigins };
