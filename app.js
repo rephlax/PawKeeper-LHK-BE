@@ -5,20 +5,17 @@ const express = require("express");
 const cors = require("cors");
 const app = express();
 
-const allowedOrigins = [
-  'https://pawkeeper.netlify.app',
-  'https://pawkeeper-lhk-be.onrender.com',
-  'http://localhost:5173',
-  'http://localhost:5005'
-];
-
-
-app.options('*', cors());
+// const allowedOrigins = [
+//   'https://pawkeeper.netlify.app',
+//   'https://pawkeeper-lhk-be.onrender.com',
+//   'http://localhost:5173',
+//   'http://localhost:5005'
+// ];
 
 app.use(
   cors({
-    origin: allowedOrigins,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    origin:   'https://pawkeeper-lhk-be.onrender.com',
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
     maxAge: 86400,
