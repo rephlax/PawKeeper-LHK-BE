@@ -13,8 +13,7 @@ const httpServer = createServer(app);
 
 // Define allowed origins for deployment
 const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:5173',
+    'https://pawkeeper.netlify.app',
     process.env.ORIGIN
 ].filter(Boolean);
 
