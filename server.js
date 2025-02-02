@@ -1,6 +1,6 @@
-const app = require("./app");
+console.log("Starting server...");
+const { app } = require("./app");
 const express = require("express");
-const cors = require("cors");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
@@ -11,25 +11,21 @@ require("dotenv").config();
 const PORT = process.env.PORT || 5005;
 const httpServer = createServer(app);
 
-// Define allowed origins for deployment
-const allowedOrigins = [
-    'https://pawkeeper.netlify.app',
-    process.env.ORIGIN
-].filter(Boolean);
-
 const io = new Server(httpServer, {
     cors: {
-        origin: allowedOrigins,
+        origin: 'https://pawkeeper.netlify.app',
         credentials: true,
-        methods: ["GET", "POST"]
-    }
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
+        allowUpgrades: true
+    },
+    path: '/socket.io',
+    transports: ['polling', 'websocket'],
+    allowEIO3: true,
+    upgradeTimeout: 30000
 });
 
 app.use(express.json());
-app.use(cors({
-    origin: allowedOrigins,
-    credentials: true
-}));
 
 // Authentication middleware
 io.use(async (socket, next) => {
@@ -59,12 +55,11 @@ io.on('connection', (socket) => {
     registerSocketHandlers(io, socket);
 });
 
-// Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ message: 'Internal server error' });
 });
 
 httpServer.listen(PORT, () => {
-    console.log(`Server listening on http://localhost:${PORT}`);
+    console.log(`Server listening on port:${PORT}`);
 });

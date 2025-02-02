@@ -1,27 +1,43 @@
-// ℹ️ Gets access to environment variables/settings
-// https://www.npmjs.com/package/dotenv
 require("dotenv").config();
-
-// ℹ️ Connects to the database
 require("./db");
 
-// Handles http requests (express is node js framework)
-// https://www.npmjs.com/package/express
 const express = require("express");
 const cors = require("cors");
-
 const app = express();
 
-// ℹ️ This function is getting exported from the config folder. It runs most pieces of middleware
-require("./config")(app);
+// const allowedOrigins = [
+//   'https://pawkeeper.netlify.app',
+//   'https://pawkeeper-lhk-be.onrender.com',
+//   'http://localhost:5173',
+//   'http://localhost:5005'
+// ];
+
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin:   'https://pawkeeper.netlify.app',
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    credentials: true, //allows for cookies and auth
-    maxAge: 86400, //reduces server load by only caching for 24hours
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
+    maxAge: 86400,
   })
 );
+
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'https://pawkeeper.netlify.app');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Origin, Accept');
+  res.header('Access-Control-Allow-Credentials', true);
+  next();
+});
+
+require("./config")(app);
+
+app.get('/debug-env', (req, res) => {
+  res.json({
+    origin: process.env.ORIGIN,
+    port: process.env.PORT
+  });
+});
 
 // 👇 Start handling routes here
 const indexRoutes = require("./routes/index.routes");
@@ -33,7 +49,17 @@ app.use("/users", userRoutes);
 const reviewRoutes = require("./routes/review.routes");
 app.use("/reviews", reviewRoutes);
 
-// ❗ To handle errors. Routes that don't exist or errors that you handle in specific routes
+app.use((err, req, res, next) => {
+  if (err.name === 'CORSError') {
+    res.status(403).json({ 
+      message: 'CORS error', 
+      error: err.message 
+    });
+  } else {
+    next(err);
+  }
+});
+
 require("./error-handling")(app);
 
-module.exports = app;
+module.exports = { app };
