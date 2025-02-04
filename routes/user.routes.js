@@ -58,7 +58,7 @@ router.post("/login", async (req, res) => {
           algorithm: "HS256",
           expiresIn: "10d",
         });
-        res.status(200).json({ message: "here is the token", authToken });
+        res.status(200).json({ message: "here is the token", authToken , userId: foundUser._id});
       } else {
         res.status(403).json({ message: "Invalid Crecentials" });
       }

@@ -14,7 +14,7 @@ const app = express();
 
 app.use(
   cors({
-    origin:   'https://pawkeeper.netlify.app',
+    origin:   'http://localhost:5173',
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
@@ -23,7 +23,7 @@ app.use(
 );
 
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'https://pawkeeper.netlify.app');
+  res.header('Access-Control-Allow-Origin', 'http://localhost:5173');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Origin, Accept');
   res.header('Access-Control-Allow-Credentials', true);
