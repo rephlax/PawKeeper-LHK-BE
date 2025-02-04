@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const UserModel = require("../models/User.model");
 const isAuthenticated = require("../middlewares/auth.middleware");
+const mongoose = require("mongoose");
 
 router.get("/", async (req, res) => {
   try {
@@ -28,6 +29,7 @@ router.post("/signup", async (req, res) => {
       location: req.body.location,
       rating: req.body.rating,
       reviews: req.body.reviews,
+      sitter: req.body.sitter,
     };
     console.log(req.body);
     const createdUser = await UserModel.create(hashedUser);
@@ -47,20 +49,32 @@ router.post("/login", async (req, res) => {
     } else {
       const isValidPassword = bcrypt.compareSync(
         req.body.password,
-        foundUser.password
+        foundUser.password        
       );
 
       if (isValidPassword) {
-        const data = { _id: foundUser._id, email: foundUser.email };
+        const data = { _id: foundUser._id, email: foundUser.email, username: foundUser.username };
         const authToken = jwt.sign(data, process.env.TOKEN_KEY, {
           algorithm: "HS256",
-          expiresIn: "5m",
+          expiresIn: "10d",
         });
-        res.status(200).json({ message: "here is the token", authToken });
+        res.status(200).json({ message: "here is the token", authToken , userId: foundUser._id});
       } else {
         res.status(403).json({ message: "Invalid Crecentials" });
       }
     }
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: `${error}` });
+  }
+});
+
+router.get("/user/:userId", isAuthenticated, async (req, res) => {
+  const {userId} = req.params;
+ 
+  try {
+    const oneUser = await UserModel.findById(userId);
+    res.status(200).json(oneUser);
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: `${error}` });
@@ -90,4 +104,11 @@ router.delete("/delete-user/:userId", isAuthenticated, async (req, res) => {
     res.status(500).json({ message: `${error}` });
   }
 });
+
+router.get("/verify", isAuthenticated, async (req, res) => {
+  res
+    .status(200)
+    .json({ message: "user is authenticated", currentUser: req.payload });
+});
+
 module.exports = router;
