@@ -5,11 +5,13 @@ const { createServer } = require("http");
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 const UserModel = require("./models/User.model");
-const registerSocketHandlers = require('./socket-handlers');
 require("dotenv").config();
 
 const PORT = process.env.PORT || 5005;
 const httpServer = createServer(app);
+
+// Track online users
+const onlineUsers = new Map();
 
 const io = new Server(httpServer, {
     cors: {
@@ -50,6 +52,35 @@ io.use(async (socket, next) => {
         next(new Error("Authentication failed"));
     }
 });
+
+const registerSocketHandlers = (io, socket) => {
+    const userId = socket.user._id.toString();
+    
+    onlineUsers.set(userId, socket.id);
+    
+    io.emit('users_online', Array.from(onlineUsers.keys()));
+
+    socket.on('get_online_users', () => {
+        socket.emit('users_online', Array.from(onlineUsers.keys()));
+    });
+
+    socket.on('start_private_chat', async ({ targetUserId }) => {
+        const targetSocketId = onlineUsers.get(targetUserId);
+        if (targetSocketId) {
+            const roomId = [userId, targetUserId].sort().join('-');
+            socket.join(roomId);
+            io.to(targetSocketId).emit('chat_invitation', {
+                roomId,
+                invitedBy: socket.user.username
+            });
+        }
+    });
+
+    socket.on('disconnect', () => {
+        onlineUsers.delete(userId);
+        io.emit('users_online', Array.from(onlineUsers.keys()));
+    });
+};
 
 io.on('connection', (socket) => {
     registerSocketHandlers(io, socket);
