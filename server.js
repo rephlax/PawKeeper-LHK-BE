@@ -13,7 +13,7 @@ const onlineUsers = new Map();
 
 const io = new Server(httpServer, {
     cors: {
-        origin: ['https://pawkeeper.netlify.app', 'http://localhost:5173'],
+        origin: 'https://pawkeeper.netlify.app',
         credentials: true,
         methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
         allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
