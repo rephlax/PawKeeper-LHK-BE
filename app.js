@@ -22,14 +22,6 @@ app.use(
   })
 );
 
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'https://pawkeeper.netlify.app');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Origin, Accept');
-  res.header('Access-Control-Allow-Credentials', true);
-  next();
-});
-
 require("./config")(app);
 
 app.get('/debug-env', (req, res) => {
@@ -44,7 +36,7 @@ const indexRoutes = require("./routes/index.routes");
 app.use("/api", indexRoutes);
 
 const userRoutes = require("./routes/user.routes");
-app.use("/users", userRoutes);
+app.use("/api/users", userRoutes);
 
 const reviewRoutes = require("./routes/review.routes");
 app.use("/reviews", reviewRoutes);
