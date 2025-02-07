@@ -51,6 +51,9 @@ app.use("/users", userRoutes);
 const reviewRoutes = require("./routes/review.routes");
 app.use("/reviews", reviewRoutes);
 
+const messageRoutes = require("./routes/message.routes");
+app.use("/messages", messageRoutes);
+
 app.use((err, req, res, next) => {
   if (err.name === 'CORSError') {
     res.status(403).json({ 
