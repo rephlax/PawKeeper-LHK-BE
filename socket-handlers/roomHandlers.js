@@ -7,12 +7,49 @@ const roomHandlers = (io, socket) => {
             const room = await ChatRoom.findById(roomId);
             if (room && room.participants.includes(socket.user._id)) {
                 socket.join(roomId);
+                // Activate room
+                await ChatRoom.findByIdAndUpdate(roomId, {
+                    isActive: true,
+                    lastActive: new Date()
+                });
                 console.log(`User ${socket.user.username} joined room ${roomId}`);
                 socket.emit('private_chat_started', roomId);
             }
         } catch (error) {
             console.error('Join room error:', error);
             socket.emit('error', 'Failed to join room');
+        }
+    });
+
+    // Handle room leave and deactivation
+    socket.on('leave_room', async (roomId) => {
+        try {
+            socket.leave(roomId);
+            const sockets = await io.in(roomId).allSockets();
+            if (sockets.size === 0) {
+                await ChatRoom.findByIdAndUpdate(roomId, {
+                    isActive: false,
+                    lastActive: new Date()
+                });
+            }
+        } catch (error) {
+            console.error('Leave room error:', error);
+        }
+    });
+
+    // Get active rooms for user
+    socket.on('get_active_rooms', async () => {
+        try {
+            const rooms = await ChatRoom.find({
+                participants: socket.user._id
+            })
+            .populate('participants', 'username profilePicture')
+            .populate('lastMessage')
+            .sort({ lastActive: -1 });
+
+            socket.emit('active_rooms', rooms);
+        } catch (error) {
+            socket.emit('error', 'Failed to get active rooms');
         }
     });
 
@@ -38,7 +75,9 @@ const roomHandlers = (io, socket) => {
             // Create new room
             const newRoom = await ChatRoom.create({
                 participants: [socket.user._id, targetUserId],
-                updatedAt: new Date()
+                updatedAt: new Date(),
+                isActive: true,
+                lastActive: new Date()
             });
             
             // Join the room yourself
@@ -58,6 +97,7 @@ const roomHandlers = (io, socket) => {
         }
     });
 
+    // Handle group chat invites
     socket.on('invite_to_chat', async ({ roomId, targetUserId }) => {
         try {
             const room = await ChatRoom.findById(roomId);
@@ -79,6 +119,6 @@ const roomHandlers = (io, socket) => {
             socket.emit('error', 'Failed to send invitation');
         }
     });
- };
+};
 
 module.exports = roomHandlers;
