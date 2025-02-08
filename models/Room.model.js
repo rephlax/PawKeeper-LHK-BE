@@ -14,6 +14,14 @@ const chatRoomSchema = new Schema({
     type: Date, 
     default: Date.now 
   },
+  isActive: {
+    type: Boolean,
+    default: false
+  },
+  lastActive: {
+    type: Date,
+    default: Date.now
+  },
   readBy: [{
     user: { 
       type: Schema.Types.ObjectId, 

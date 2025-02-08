@@ -12,6 +12,16 @@ const app = express();
 //   'http://localhost:5005'
 // ];
 
+
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'https://pawkeeper.netlify.app');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Origin, Accept');
+  res.header('Access-Control-Allow-Credentials', true);
+  next();
+});
+
+
 app.use(
   cors({
     origin:   'https://pawkeeper.netlify.app',
@@ -48,6 +58,9 @@ app.use("/users", userRoutes);
 
 const reviewRoutes = require("./routes/review.routes");
 app.use("/reviews", reviewRoutes);
+
+const messageRoutes = require("./routes/message.routes");
+app.use("/messages", messageRoutes);
 
 app.use((err, req, res, next) => {
   if (err.name === 'CORSError') {
