@@ -5,6 +5,7 @@ const { createServer } = require("http");
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 const UserModel = require("./models/User.model");
+const ChatRoom = require("./models/Room.model");
 require("dotenv").config();
 
 const PORT = process.env.PORT || 5005;
@@ -81,6 +82,51 @@ const registerSocketHandlers = (io, socket) => {
         } catch (error) {
             console.error('Private chat error:', error);
             socket.emit('error', 'Failed to start private chat');
+        }
+    });
+
+    socket.on('create_room', async ({ name, type, participants }) => {
+        try {
+            console.log('Received room creation request:', { 
+                name, 
+                type, 
+                participants, 
+                creatorId: socket.user._id 
+            });
+
+            const newRoom = await ChatRoom.create({
+                name,
+                type: type || 'group',
+                participants: [socket.user._id, ...participants],
+                creator: socket.user._id,
+                isActive: true,
+                lastActive: new Date()
+            });
+
+            // Populate participants before sending
+            const populatedRoom = await newRoom.populate('participants', 'username profilePicture');
+
+            console.log('Room created successfully:', populatedRoom);
+
+            // Notify participants
+            participants.forEach(participantId => {
+                io.to(participantId).emit('room_invitation', {
+                    roomId: newRoom._id,
+                    roomName: name,
+                    invitedBy: socket.user.username,
+                    invitedById: socket.user._id
+                });
+            });
+
+            // Send room details back to creator
+            socket.emit('room_created', populatedRoom);
+
+        } catch (error) {
+            console.error('Room creation error:', error);
+            socket.emit('error', {
+                message: 'Failed to create room',
+                details: error.message
+            });
         }
     });
 
