@@ -96,6 +96,7 @@ router.patch("/update-user/:userId", isAuthenticated, async (req, res) => {
 
 router.delete("/delete-user/:userId", isAuthenticated, async (req, res) => {
   const { userId } = req.params;
+  
   try {
     const deletedUser = await UserModel.findByIdAndDelete(userId);
     res.status(200).json({ message: "User Sucessfuly deleted", deletedUser });
