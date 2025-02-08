@@ -1,44 +1,85 @@
 const ChatRoom = require('../models/Room.model');
 
 const roomHandlers = (io, socket) => {
-    // Add join room handler
+    // Create a new room
+    socket.on('create_room', async ({ name, type, participants }) => {
+        try {
+            const newRoom = await ChatRoom.create({
+                name,
+                type,
+                participants: [socket.user._id, ...participants],
+                creator: socket.user._id,
+                isActive: true,
+                lastActive: new Date()
+            });
+
+            // Join the room yourself
+            socket.join(newRoom._id);
+
+            // Notify other participants
+            participants.forEach(participantId => {
+                io.to(participantId).emit('room_invitation', {
+                    roomId: newRoom._id,
+                    roomName: name,
+                    invitedBy: socket.user.username,
+                    invitedById: socket.user._id
+                });
+            });
+
+            // Send room details back to creator
+            socket.emit('room_created', await newRoom.populate('participants'));
+
+        } catch (error) {
+            console.error('Room creation error:', error);
+            socket.emit('error', 'Failed to create room');
+        }
+    });
+
+    // Join room
     socket.on('join_room', async (roomId) => {
         try {
-            const room = await ChatRoom.findById(roomId);
-            if (room && room.participants.includes(socket.user._id)) {
-                socket.join(roomId);
-                // Activate room
-                await ChatRoom.findByIdAndUpdate(roomId, {
-                    isActive: true,
-                    lastActive: new Date()
-                });
-                console.log(`User ${socket.user.username} joined room ${roomId}`);
-                socket.emit('private_chat_started', roomId);
+            const room = await ChatRoom.findById(roomId)
+                .populate('participants', 'username profilePicture')
+                .populate('lastMessage');
+
+            if (!room) {
+                throw new Error('Room not found');
             }
+
+            // Check if user is invited or already a participant
+            if (!room.participants.some(p => p._id.toString() === socket.user._id.toString()) &&
+                !room.pendingInvites.includes(socket.user._id)) {
+                throw new Error('Not authorized to join this room');
+            }
+
+            // Add user to participants if they were in pendingInvites
+            if (room.pendingInvites.includes(socket.user._id)) {
+                await ChatRoom.findByIdAndUpdate(roomId, {
+                    $pull: { pendingInvites: socket.user._id },
+                    $addToSet: { participants: socket.user._id }
+                });
+            }
+
+            socket.join(roomId);
+            
+            // Notify all participants
+            room.participants.forEach(participant => {
+                io.to(participant._id.toString()).emit('user_joined_room', {
+                    roomId,
+                    user: socket.user
+                });
+            });
+
+            socket.emit('room_joined', room);
+
         } catch (error) {
             console.error('Join room error:', error);
-            socket.emit('error', 'Failed to join room');
+            socket.emit('error', error.message);
         }
     });
 
-    // Handle room leave and deactivation
-    socket.on('leave_room', async (roomId) => {
-        try {
-            socket.leave(roomId);
-            const sockets = await io.in(roomId).allSockets();
-            if (sockets.size === 0) {
-                await ChatRoom.findByIdAndUpdate(roomId, {
-                    isActive: false,
-                    lastActive: new Date()
-                });
-            }
-        } catch (error) {
-            console.error('Leave room error:', error);
-        }
-    });
-
-    // Get active rooms for user
-    socket.on('get_active_rooms', async () => {
+    // Get user's rooms
+    socket.on('get_rooms', async () => {
         try {
             const rooms = await ChatRoom.find({
                 participants: socket.user._id
@@ -47,76 +88,37 @@ const roomHandlers = (io, socket) => {
             .populate('lastMessage')
             .sort({ lastActive: -1 });
 
-            socket.emit('active_rooms', rooms);
+            socket.emit('rooms_list', rooms);
         } catch (error) {
-            socket.emit('error', 'Failed to get active rooms');
+            socket.emit('error', 'Failed to get rooms');
         }
     });
 
-    // Start or get private chat
-    socket.on('start_private_chat', async ({ targetUserId }) => {
-        try {
-            console.log('Starting private chat between:', socket.user.username, 'and', targetUserId);
-            
-            // Look for existing room
-            const existingRoom = await ChatRoom.findOne({
-                participants: { 
-                    $all: [socket.user._id, targetUserId],
-                    $size: 2 
-                }
-            });
-
-            if (existingRoom) {
-                socket.join(existingRoom._id);
-                socket.emit('private_chat_started', existingRoom._id);
-                return;
-            }
-
-            // Create new room
-            const newRoom = await ChatRoom.create({
-                participants: [socket.user._id, targetUserId],
-                updatedAt: new Date(),
-                isActive: true,
-                lastActive: new Date()
-            });
-            
-            // Join the room yourself
-            socket.join(newRoom._id);
-            
-            // Send different events to each user
-            socket.emit('private_chat_started', newRoom._id);
-            socket.to(targetUserId).emit('chat_invitation', {
-                roomId: newRoom._id,
-                invitedBy: socket.user.username,
-                invitedById: socket.user._id
-            });
-
-        } catch (error) {
-            console.error('Private chat error:', error);
-            socket.emit('error', 'Failed to start private chat');
-        }
-    });
-
-    // Handle group chat invites
-    socket.on('invite_to_chat', async ({ roomId, targetUserId }) => {
+    // Leave room
+    socket.on('leave_room', async (roomId) => {
         try {
             const room = await ChatRoom.findById(roomId);
             
-            if (!room.participants.includes(socket.user._id)) {
-                throw new Error('Not authorized to invite');
-            }
- 
+            if (!room) return;
+
+            socket.leave(roomId);
+            
             await ChatRoom.findByIdAndUpdate(roomId, {
-                $addToSet: { participants: targetUserId }
+                $pull: { participants: socket.user._id }
             });
- 
-            io.to(targetUserId).emit('chat_invitation', {
-                roomId,
-                invitedBy: socket.user._id
+
+            // Notify other participants
+            room.participants.forEach(participantId => {
+                if (participantId.toString() !== socket.user._id.toString()) {
+                    io.to(participantId.toString()).emit('user_left_room', {
+                        roomId,
+                        userId: socket.user._id
+                    });
+                }
             });
- 
+
         } catch (error) {
-            socket.emit('error', 'Failed to send invitation');
+            socket.emit('error', 'Failed to leave room');
         }
     });
 };
