@@ -6,6 +6,7 @@ const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 const UserModel = require("./models/User.model");
 const ChatRoom = require("./models/Room.model");
+const Message = require("./models/Message.model");
 require("dotenv").config();
 
 const PORT = process.env.PORT || 5005;
@@ -85,6 +86,25 @@ const registerSocketHandlers = (io, socket) => {
         }
     });
 
+    socket.on('get_rooms', async () => {
+        try {
+            const rooms = await ChatRoom.find({
+                participants: socket.user._id
+            })
+            .populate('participants', 'username profilePicture')
+            .populate('lastMessage')
+            .sort({ updatedAt: -1 });
+    
+            socket.emit('rooms_list', rooms);
+        } catch (error) {
+            console.error('Error fetching rooms:', error);
+            socket.emit('error', {
+                message: 'Failed to fetch rooms',
+                details: error.message
+            });
+        }
+    });
+
     socket.on('create_room', async ({ name, type, participants }) => {
         try {
             console.log('Received room creation request:', { 
@@ -130,19 +150,77 @@ const registerSocketHandlers = (io, socket) => {
         }
     });
 
+    socket.on('join_room', async (roomId) => {
+        try {
+            const room = await ChatRoom.findById(roomId)
+                .populate('participants', 'username profilePicture')
+                .populate('lastMessage');
+    
+            if (!room) {
+                throw new Error('Room not found');
+            }
+    
+            // Check if user is already a participant
+            if (!room.participants.some(p => p._id.toString() === socket.user._id.toString())) {
+                await ChatRoom.findByIdAndUpdate(roomId, {
+                    $addToSet: { participants: socket.user._id }
+                });
+            }
+    
+            // Join the socket room
+            socket.join(roomId);
+            
+            // Notify all participants
+            room.participants.forEach(participant => {
+                io.to(participant._id.toString()).emit('user_joined_room', {
+                    roomId,
+                    user: socket.user
+                });
+            });
+    
+            // Send room details back to the user
+            socket.emit('room_joined', room);
+    
+        } catch (error) {
+            console.error('Join room error:', error);
+            socket.emit('error', {
+                message: 'Failed to join room',
+                details: error.message
+            });
+        }
+    });
+
     // Handle messaging
     socket.on('send_message', async ({ roomId, content }) => {
         try {
-            const messageData = {
-                id: Date.now(),
+            const newMessage = await Message.create({
+                chatRoom: roomId,
+                sender: socket.user._id,
                 content,
-                sender: socket.user,
-                timestamp: new Date()
-            };
-            io.to(roomId).emit('receive_message', messageData);
+                timeStamp: new Date()
+            });
+    
+            await ChatRoom.findByIdAndUpdate(roomId, {
+                lastMessage: newMessage._id,
+                updatedAt: new Date()
+            });
+    
+            await newMessage.populate('sender', 'username profilePicture');
+    
+            io.to(roomId).emit('receive_message', {
+                id: newMessage._id,
+                content: newMessage.content,
+                sender: newMessage.sender,
+                timestamp: newMessage.timeStamp,
+                roomId
+            });
+    
         } catch (error) {
-            console.error('Message error:', error);
-            socket.emit('error', 'Failed to send message');
+            console.error('Message sending error:', error);
+            socket.emit('error', {
+                message: 'Failed to send message',
+                details: error.message
+            });
         }
     });
 
