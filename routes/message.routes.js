@@ -3,13 +3,13 @@ const Message = require("../models/Message.model");
 const isAuthenticated = require("../middlewares/auth.middleware");
 
 // Get messages for a specific chat room
-router.get("/room/:roomId", isAuthenticated, async (req, res) => {
+router.get("/chat/:roomId", isAuthenticated, async (req, res) => {
     try {
         const messages = await Message.find({ 
             chatRoom: req.params.roomId,
             isDeleted: false
         })
-            .populate('sender')
+            .populate('sender', 'username profilePicture')
             .sort({ timeStamp: 1 });
         res.status(200).json(messages);
     } catch (error) {
@@ -17,12 +17,15 @@ router.get("/room/:roomId", isAuthenticated, async (req, res) => {
     }
 });
 
-// Edit
-router.patch("/:messageId", isAuthenticated, async (req, res) => {
+// Edit message
+router.patch("/edit/:messageId", isAuthenticated, async (req, res) => {
     try {
         const message = await Message.findById(req.params.messageId);
         
-        // Check if user owns the message
+        if (!message) {
+            return res.status(404).json({ message: "Message not found" });
+        }
+        
         if (message.sender.toString() !== req.payload._id) {
             return res.status(403).json({ message: "Not authorized to edit this message" });
         }
@@ -34,7 +37,7 @@ router.patch("/:messageId", isAuthenticated, async (req, res) => {
                 lastEdited: new Date()
             },
             { new: true }
-        ).populate('sender');
+        ).populate('sender', 'username profilePicture');
 
         res.status(200).json(updatedMessage);
     } catch (error) {
@@ -42,12 +45,15 @@ router.patch("/:messageId", isAuthenticated, async (req, res) => {
     }
 });
 
-// Delete
-router.delete("/:messageId", isAuthenticated, async (req, res) => {
+// Delete message (soft delete)
+router.delete("/delete/:messageId", isAuthenticated, async (req, res) => {
     try {
         const message = await Message.findById(req.params.messageId);
         
-        // Check if user owns the message
+        if (!message) {
+            return res.status(404).json({ message: "Message not found" });
+        }
+
         if (message.sender.toString() !== req.payload._id) {
             return res.status(403).json({ message: "Not authorized to delete this message" });
         }
@@ -62,6 +68,24 @@ router.delete("/:messageId", isAuthenticated, async (req, res) => {
         );
 
         res.status(200).json({ message: "Message deleted", deletedMessage });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Get message history for a user
+router.get("/history", isAuthenticated, async (req, res) => {
+    try {
+        const messages = await Message.find({
+            sender: req.payload._id,
+            isDeleted: false
+        })
+        .populate('chatRoom')
+        .populate('sender', 'username profilePicture')
+        .sort({ timeStamp: -1 })
+        .limit(50);
+
+        res.status(200).json(messages);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
