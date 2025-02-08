@@ -25,7 +25,7 @@ router.post("/signup", async (req, res) => {
       username: req.body.username,
       ownedPets: req.body.ownedPets,
       profilePicture: req.body.profilePicture,
-      rate: req.body.rate,
+      rate: req.body.rate || 0,
       location: req.body.location,
       rating: req.body.rating,
       reviews: req.body.reviews,
@@ -83,16 +83,22 @@ router.get("/user/:userId", isAuthenticated, async (req, res) => {
 
 router.patch("/update-user/:userId", isAuthenticated, async (req, res) => {
   const { userId } = req.params;
+  console.log(req.body)
   try {
-    const foundUser = UserModel.findByIdAndUpdate(userId, req.body, {
+    const foundUser = await UserModel.findByIdAndUpdate(userId, req.body, {
       new: true,
     });
+    console.log(foundUser)
     res.status(200).json({ message: "User updated successfully", foundUser });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: `${error}` });
   }
 });
+
+router.patch("/update-user/:userId/password-change", isAuthenticated, (req, res) => {
+  
+})
 
 router.delete("/delete-user/:userId", isAuthenticated, async (req, res) => {
   const { userId } = req.params;
