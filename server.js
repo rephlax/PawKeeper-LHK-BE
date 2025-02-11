@@ -7,8 +7,10 @@ const jwt = require("jsonwebtoken");
 const UserModel = require("./models/User.model");
 const ChatRoom = require("./models/Room.model");
 const Message = require("./models/Message.model");
+const rateLimit = require('express-rate-limit');
+const LocationPin = require('./models/LocationPin.model');
 require("dotenv").config();
-
+const helmet = require('helmet');
 const PORT = process.env.PORT || 5005;
 const httpServer = createServer(app);
 const onlineUsers = new Map();
@@ -23,6 +25,34 @@ const io = new Server(httpServer, {
     pingTimeout: 60000,
     pingInterval: 25000
 });
+
+app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        scriptSrc: [
+          "'self'",
+          'https://maps.googleapis.com',
+          'https://maps.google.com'
+        ]
+      }
+    }
+  }));
+
+  const globalRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: 'Too many requests, please try again later'
+});
+
+const locationRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 50,
+    message: 'Too many location requests, please try again later'
+});
+
+app.use(globalRateLimiter);
 
 app.use(express.json());
 
