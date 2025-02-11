@@ -18,7 +18,7 @@ app.use(
     origin:   `${origin}`,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization", "Origin", "Accept"],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
     maxAge: 86400,
   })
 );
@@ -33,10 +33,10 @@ app.use((req, res, next) => {
 
 require("./config")(app);
 
-app.get("/debug-env", (req, res) => {
+app.get('/debug-env', (req, res) => {
   res.json({
     origin: process.env.ORIGIN,
-    port: process.env.PORT,
+    port: process.env.PORT
   });
 });
 
@@ -56,11 +56,14 @@ app.use("/messages", messageRoutes);
 const roomRoutes = require("./routes/room.routes");
 app.use("/rooms", roomRoutes);
 
+const locationPinRoutes = require("./routes/location-pin.routes");
+app.use("/api/location-pins", locationPinRoutes);
+
 app.use((err, req, res, next) => {
-  if (err.name === "CORSError") {
-    res.status(403).json({
-      message: "CORS error",
-      error: err.message,
+  if (err.name === 'CORSError') {
+    res.status(403).json({ 
+      message: 'CORS error', 
+      error: err.message 
     });
   } else {
     next(err);
