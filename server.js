@@ -8,6 +8,7 @@ const UserModel = require("./models/User.model");
 const ChatRoom = require("./models/Room.model");
 const Message = require("./models/Message.model");
 const rateLimit = require('express-rate-limit');
+const LocationPin = require('./models/LocationPin.model');
 require("dotenv").config();
 const helmet = require('helmet');
 const PORT = process.env.PORT || 5005;
