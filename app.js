@@ -56,6 +56,9 @@ app.use("/messages", messageRoutes);
 const roomRoutes = require("./routes/room.routes");
 app.use("/rooms", roomRoutes);
 
+const locationPinRoutes = require("./routes/location-pin.routes");
+app.use("/api/location-pins", locationPinRoutes);
+
 app.use((err, req, res, next) => {
   if (err.name === 'CORSError') {
     res.status(403).json({ 
