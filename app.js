@@ -11,28 +11,11 @@ const app = express();
 //   'http://localhost:5173',
 //   'http://localhost:5005'
 // ];
-
-// i18next setup
-const i18next = require("i18next");
-const Backend = require("i18next-node-fs-backend");
-const middleware = require("i18next-express-middleware");
-
-i18next
-  .use(Backend)
-  .use(middleware.LanguageDetector)
-  .init({
-    fallbackLng: "en", // Fallback language
-    backend: {
-      loadPath: __dirname + "/locales/{{lng}}/translation.json", //path to translation files
-    },
-  });
-
-// Use i18next middleware
-app.use(middleware.handle(i18next));
+const origin = process.env.ORIGIN || 'http://localhost:5173'
 
 app.use(
   cors({
-    origin: "https://pawkeeper.netlify.app",
+    origin:   `${origin}`,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "Origin", "Accept"],
@@ -41,13 +24,10 @@ app.use(
 );
 
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "https://pawkeeper.netlify.app");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH");
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, Origin, Accept"
-  );
-  res.header("Access-Control-Allow-Credentials", true);
+  res.header('Access-Control-Allow-Origin', `${origin}`);
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Origin, Accept');
+  res.header('Access-Control-Allow-Credentials', true);
   next();
 });
 
@@ -69,6 +49,12 @@ app.use("/users", userRoutes);
 
 const reviewRoutes = require("./routes/review.routes");
 app.use("/reviews", reviewRoutes);
+
+const messageRoutes = require("./routes/message.routes");
+app.use("/messages", messageRoutes);
+
+const roomRoutes = require("./routes/room.routes");
+app.use("/rooms", roomRoutes);
 
 app.use((err, req, res, next) => {
   if (err.name === "CORSError") {

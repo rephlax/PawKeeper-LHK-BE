@@ -28,7 +28,8 @@ const messageHandlers = (io, socket) => {
                 id: newMessage._id,
                 content: newMessage.content,
                 sender: newMessage.sender,
-                timeStamp: newMessage.timeStamp
+                timestamp: newMessage.timeStamp,
+                roomId
             });
 
         } catch (error) {

@@ -21,16 +21,17 @@ const userSchema = new Schema(
       unique: true
       },
     profilePicture: {type: String},
-    rate: {type: Number},
+    rate: {type: Number, default: 0},
     location: {
-      //TODO: enable coordinates again
+      
     type: {
       type: String,
       required: [false, 'Location type is required.'], // Ensures "type" is provided
       enum: ['Point'] // Validates that "type" is "Point"
     },
-    coordinates: {
-      type: [Number], // Array of numbers
+    coordinates: { 
+      latitude: {type: Number, default: 0},
+      longitude: {type: Number, default: 0}, // Array of numbers
       required: [false, 'Coordinates are required.'], // Ensures "coordinates" are provided
       // validate: {
       //   validator: function (value) {
@@ -40,7 +41,7 @@ const userSchema = new Schema(
       // }
     }
   },
-    rating: {type: Number},
+    rating: {type: Number, default: 0},
     reviewsReceived: {
       type: [Schema.Types.ObjectId], 
       ref: "review"
