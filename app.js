@@ -47,6 +47,9 @@ app.use("/api", indexRoutes);
 const userRoutes = require("./routes/user.routes");
 app.use("/users", userRoutes);
 
+const petRoutes = require("./routes/pet.routes");
+app.use("/pets", petRoutes);
+
 const reviewRoutes = require("./routes/review.routes");
 app.use("/reviews", reviewRoutes);
 
