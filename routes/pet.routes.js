@@ -4,18 +4,9 @@ const UserModel = require("../models/User.model");
 
 const router = require("express").Router();
 
-router.get("/:userId", isAuthenticated, async (req, res) => {
-  const {userId} = req.params
 
-  try {
-    const allPets = await PetModel.find({owner: userId});
 
-    res.status(200).json(allPets);
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: `${error}` });
-  }
-});
+
 
 router.post("/:userId", isAuthenticated, async (req, res) => {
   const { userId } = req.params;
@@ -51,6 +42,32 @@ router.post("/:userId", isAuthenticated, async (req, res) => {
     res.status(500).json({ message: `${error}` });
   }
 });
+
+router.get("/:userId", isAuthenticated, async (req, res) => {
+  const {userId} = req.params
+
+  try {
+    const allPets = await PetModel.find({owner: userId});
+
+    res.status(200).json(allPets);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: `${error}` });
+  }
+});
+
+router.delete("/:petId", isAuthenticated, async(req, res) => {
+  const {petId} = req.params;
+
+  try {
+    const deletedPet = await PetModel.findByIdAndDelete(petId);
+
+    res.status(204).json(deletedPet)
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: `${error}` });
+  }
+})
 
 //TODO: create Pet routes to get pets by id
 module.exports = router;
