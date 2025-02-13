@@ -9,6 +9,7 @@ const ChatRoom = require("./models/Room.model");
 const Message = require("./models/Message.model");
 const rateLimit = require('express-rate-limit');
 const LocationPin = require('./models/LocationPin.model');
+const locationSocketHandlers = require('./locationHandlers');
 require("dotenv").config();
 const helmet = require('helmet');
 const PORT = process.env.PORT || 5005;
@@ -92,6 +93,7 @@ const registerSocketHandlers = (io, socket) => {
     io.emit('user_connected', userId);
     io.emit('users_online', Array.from(onlineUsers.keys()));
 
+    locationSocketHandlers(io, socket);
     // Handle online users request
     socket.on('get_online_users', () => {
         socket.emit('users_online', Array.from(onlineUsers.keys()));

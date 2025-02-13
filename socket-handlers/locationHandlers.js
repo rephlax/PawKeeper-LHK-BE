@@ -1,4 +1,3 @@
-// socketLocationHandlers.js
 const LocationPin = require('../models/LocationPin.model');
 const rateLimit = require('express-rate-limit');
 
@@ -64,6 +63,46 @@ const locationSocketHandlers = (io, socket) => {
       callback({ sitters: nearbyPins });
     } catch (error) {
       callback({ error: 'Search failed' });
+    }
+  });
+
+  // Map center events
+  socket.on('center_map', (location) => {
+    if (isValidLocation(location)) {
+      socket.broadcast.emit('center_map', location);
+    }
+  });
+
+  // Pin creation mode events
+  socket.on('toggle_pin_creation', (data) => {
+    if (socket.user.sitter) {
+      socket.broadcast.emit('toggle_pin_creation', data);
+    }
+  });
+
+  // Pin created event
+  socket.on('pin_created', async () => {
+    try {
+      // Get the updated pin data
+      const pin = await LocationPin.findOne({ user: socket.user._id });
+      if (pin) {
+        io.emit('pin_created', {
+          pin,
+          userId: socket.user._id
+        });
+      }
+    } catch (error) {
+      console.error('Error broadcasting pin creation:', error);
+    }
+  });
+
+  // Location update event
+  socket.on('location_updated', async (location) => {
+    if (isValidLocation(location)) {
+      socket.broadcast.emit('location_updated', {
+        userId: socket.user._id,
+        location
+      });
     }
   });
 };
