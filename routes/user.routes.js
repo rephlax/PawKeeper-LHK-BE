@@ -97,7 +97,7 @@ router.get("/user/:userId", isAuthenticated, async (req, res) => {
 
 router.patch("/update-user/:userId", isAuthenticated, async (req, res) => {
   const { userId } = req.params;
-  console.log(req.body);
+  
   try {
     const foundUser = await UserModel.findByIdAndUpdate(userId, req.body, {
       new: true,
