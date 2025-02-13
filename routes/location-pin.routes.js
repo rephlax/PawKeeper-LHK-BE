@@ -53,39 +53,60 @@ router.get("/:pinId", isAuthenticated, async (req, res) => {
     }
 });
 
-// Search nearby location pins
-router.get("/search", async (req, res) => {
+router.get("/search", isAuthenticated, async (req, res) => {
     try {
-        const { latitude, longitude, maxDistance = 10 } = req.query;
+        const { 
+            latitude, 
+            longitude, 
+            maxDistance = 10, 
+            userId 
+        } = req.query;
 
-        const pins = await LocationPin.aggregate([
-            {
-                $geoNear: {
-                    near: {
-                        type: "Point",
-                        coordinates: [
-                            parseFloat(longitude), 
-                            parseFloat(latitude)
-                        ]
-                    },
-                    distanceField: "distance",
-                    maxDistance: maxDistance * 1000,
-                    spherical: true
-                }
-            },
-            {
-                $lookup: {
-                    from: "users",
-                    localField: "user",
-                    foreignField: "_id",
-                    as: "userDetails"
-                }
-            },
-            { $unwind: "$userDetails" }
-        ]);
+        let query = {};
 
-        res.status(200).json(pins);
+        if (userId) {
+            query.user = new mongoose.Types.ObjectId(userId);
+            
+            const userPin = await LocationPin.findOne(query)
+                .populate('user', 'username profilePicture sitter');
+            
+            return res.status(200).json(userPin ? [userPin] : []);
+        }
+
+        if (latitude && longitude) {
+            const pins = await LocationPin.aggregate([
+                {
+                    $geoNear: {
+                        near: {
+                            type: "Point",
+                            coordinates: [
+                                parseFloat(longitude), 
+                                parseFloat(latitude)
+                            ]
+                        },
+                        distanceField: "distance",
+                        maxDistance: maxDistance * 1000,
+                        spherical: true
+                    }
+                },
+                {
+                    $lookup: {
+                        from: "users",
+                        localField: "user",
+                        foreignField: "_id",
+                        as: "userDetails"
+                    }
+                },
+                { $unwind: "$userDetails" }
+            ]);
+
+            return res.status(200).json(pins);
+        }
+
+        // If no search parameters, return empty array
+        res.status(200).json([]);
     } catch (error) {
+        console.error('Search error:', error);
         res.status(500).json({ message: error.message });
     }
 });
