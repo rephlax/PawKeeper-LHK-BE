@@ -1,4 +1,5 @@
 const router = require("express").Router();
+const mongoose = require('mongoose');
 const LocationPin = require("../models/LocationPin.model");
 const UserModel = require("../models/User.model");
 const isAuthenticated = require("../middlewares/auth.middleware");
@@ -62,15 +63,15 @@ router.get("/search", isAuthenticated, async (req, res) => {
             userId 
         } = req.query;
 
-        let query = {};
-
         if (userId) {
-            query.user = new mongoose.Types.ObjectId(userId);
-            
-            const userPin = await LocationPin.findOne(query)
-                .populate('user', 'username profilePicture sitter');
-            
-            return res.status(200).json(userPin ? [userPin] : []);
+            try {
+                const userPin = await LocationPin.findOne({ user: userId })
+                    .populate('user', 'username profilePicture sitter');
+                return res.status(200).json(userPin ? [userPin] : []);
+            } catch (error) {
+                console.error('Error finding user pin:', error);
+                return res.status(400).json({ message: 'Invalid user ID format' });
+            }
         }
 
         if (latitude && longitude) {
@@ -103,7 +104,6 @@ router.get("/search", isAuthenticated, async (req, res) => {
             return res.status(200).json(pins);
         }
 
-        // If no search parameters, return empty array
         res.status(200).json([]);
     } catch (error) {
         console.error('Search error:', error);

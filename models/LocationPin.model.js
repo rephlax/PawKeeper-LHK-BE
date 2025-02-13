@@ -1,8 +1,8 @@
-const mongoose = require('mongoose');
+const {Schema, model} = require('mongoose');
 
-const locationPinSchema = new mongoose.Schema({
+const locationPinSchema = new Schema({
     user: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: Schema.Types.ObjectId,
         ref: 'User',
         required: true,
         unique: true
@@ -69,4 +69,4 @@ locationPinSchema.index({
     'location.coordinates': '2dsphere' 
 });
 
-module.exports = mongoose.model('LocationPin', locationPinSchema);
+module.exports = model('LocationPin', locationPinSchema);
