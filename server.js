@@ -9,7 +9,7 @@ const ChatRoom = require("./models/Room.model");
 const Message = require("./models/Message.model");
 const rateLimit = require('express-rate-limit');
 const LocationPin = require('./models/LocationPin.model');
-const locationSocketHandlers = require('./locationHandlers');
+const locationSocketHandlers = require('./socket-handlers/locationHandlers');
 require("dotenv").config();
 const helmet = require('helmet');
 const PORT = process.env.PORT || 5005;
