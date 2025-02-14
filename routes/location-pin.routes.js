@@ -22,10 +22,8 @@ router.post("/create", isAuthenticated, async (req, res) => {
             title: req.body.title,
             description: req.body.description,
             location: {
-                coordinates: {
-                    latitude: req.body.latitude,
-                    longitude: req.body.longitude
-                }
+                type: 'Point',
+                coordinates: [req.body.longitude, req.body.latitude]
             },
             serviceRadius: req.body.serviceRadius,
             services: req.body.services,
@@ -35,7 +33,8 @@ router.post("/create", isAuthenticated, async (req, res) => {
 
         res.status(201).json(newPin);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Pin creation error:', error);
+        res.status(500).json({ message: error.message, stack: error.stack });
     }
 });
 

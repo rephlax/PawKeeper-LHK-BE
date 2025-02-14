@@ -1,4 +1,4 @@
-const {Schema, model} = require('mongoose');
+const { Schema, model } = require('mongoose');
 
 const locationPinSchema = new Schema({
     user: {
@@ -19,19 +19,10 @@ const locationPinSchema = new Schema({
         type: {
             type: String,
             enum: ['Point'],
-            default: 'Point'
+            required: true
         },
         coordinates: {
-            type: {
-                latitude: {
-                    type: Number,
-                    required: true
-                },
-                longitude: {
-                    type: Number,
-                    required: true
-                }
-            },
+            type: [Number],  // [longitude, latitude]
             required: true
         }
     },
@@ -65,8 +56,7 @@ const locationPinSchema = new Schema({
     timestamps: true 
 });
 
-locationPinSchema.index({ 
-    'location.coordinates': '2dsphere' 
-});
+// Create the 2dsphere index for GMAPS
+locationPinSchema.index({ location: '2dsphere' });
 
 module.exports = model('LocationPin', locationPinSchema);
