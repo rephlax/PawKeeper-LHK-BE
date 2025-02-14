@@ -4,75 +4,24 @@ const LocationPin = require("../models/LocationPin.model");
 const UserModel = require("../models/User.model");
 const isAuthenticated = require("../middlewares/auth.middleware");
 
-// Create location pin
-router.post("/create", isAuthenticated, async (req, res) => {
-    try {
-        const existingPin = await LocationPin.findOne({ user: req.payload._id });
-        if (existingPin) {
-            return res.status(400).json({ message: "You already have a location pin" });
-        }
-
-        const user = await UserModel.findById(req.payload._id);
-        if (!user.sitter) {
-            return res.status(403).json({ message: "Only pet sitters can create location pins" });
-        }
-
-        const newPin = await LocationPin.create({
-            user: req.payload._id,
-            title: req.body.title,
-            description: req.body.description,
-            location: {
-                type: 'Point',
-                coordinates: [req.body.longitude, req.body.latitude]
-            },
-            serviceRadius: req.body.serviceRadius,
-            services: req.body.services,
-            availability: req.body.availability,
-            hourlyRate: req.body.hourlyRate
-        });
-
-        res.status(201).json(newPin);
-    } catch (error) {
-        console.error('Pin creation error:', error);
-        res.status(500).json({ message: error.message, stack: error.stack });
-    }
-});
-
-router.get("/:pinId", isAuthenticated, async (req, res) => {
-    try {
-        const pin = await LocationPin.findById(req.params.pinId)
-            .populate('user', 'username profilePicture');
-        
-        if (!pin) {
-            return res.status(404).json({ message: "Pin not found" });
-        }
-
-        res.status(200).json(pin);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
-
 router.get("/search", isAuthenticated, async (req, res) => {
     try {
-        const { 
-            latitude, 
-            longitude, 
-            maxDistance = 10, 
-            userId 
-        } = req.query;
+        const { userId } = req.query;
+        console.log('Search request received:', {
+            userId,
+            headers: req.headers,
+            auth: req.payload
+        });
 
         if (userId) {
-            try {
-                const userPin = await LocationPin.findOne({ user: userId })
-                    .populate('user', 'username profilePicture sitter');
-                return res.status(200).json(userPin ? [userPin] : []);
-            } catch (error) {
-                console.error('Error finding user pin:', error);
+            if (!mongoose.Types.ObjectId.isValid(userId)) {
                 return res.status(400).json({ message: 'Invalid user ID format' });
             }
+            
+            const userPin = await LocationPin.findOne({ user: userId })
+                .populate('user', 'username profilePicture sitter');
+            return res.status(200).json(userPin ? [userPin] : []);
         }
-
         if (latitude && longitude) {
             const pins = await LocationPin.aggregate([
                 {
@@ -105,8 +54,64 @@ router.get("/search", isAuthenticated, async (req, res) => {
 
         res.status(200).json([]);
     } catch (error) {
-        console.error('Search error:', error);
+        console.error('Search error details:', {
+            message: error.message,
+            stack: error.stack,
+            userId: req.query.userId
+        });
+        res.status(500).json({ 
+            message: error.message,
+            details: error.stack 
+        });
+    }
+});
+
+router.get("/:pinId", isAuthenticated, async (req, res) => {
+    try {
+        const pin = await LocationPin.findById(req.params.pinId)
+            .populate('user', 'username profilePicture');
+        
+        if (!pin) {
+            return res.status(404).json({ message: "Pin not found" });
+        }
+
+        res.status(200).json(pin);
+    } catch (error) {
         res.status(500).json({ message: error.message });
+    }
+});
+
+// Create location pin
+router.post("/create", isAuthenticated, async (req, res) => {
+    try {
+        const existingPin = await LocationPin.findOne({ user: req.payload._id });
+        if (existingPin) {
+            return res.status(400).json({ message: "You already have a location pin" });
+        }
+
+        const user = await UserModel.findById(req.payload._id);
+        if (!user.sitter) {
+            return res.status(403).json({ message: "Only pet sitters can create location pins" });
+        }
+
+        const newPin = await LocationPin.create({
+            user: req.payload._id,
+            title: req.body.title,
+            description: req.body.description,
+            location: {
+                type: 'Point',
+                coordinates: [req.body.longitude, req.body.latitude]
+            },
+            serviceRadius: req.body.serviceRadius,
+            services: req.body.services,
+            availability: req.body.availability,
+            hourlyRate: req.body.hourlyRate
+        });
+
+        res.status(201).json(newPin);
+    } catch (error) {
+        console.error('Pin creation error:', error);
+        res.status(500).json({ message: error.message, stack: error.stack });
     }
 });
 
