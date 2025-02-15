@@ -175,6 +175,7 @@ router.get("/all-pins", isAuthenticated, async (req, res) => {
 
 		res.status(200).json(allPins);
 	} catch (error) {
+		console.error("Error fetching all pins:", error);
 		res.status(500).json({
 			message: "Error fetching pins",
 			error: error.message,
