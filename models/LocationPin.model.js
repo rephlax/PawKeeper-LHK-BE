@@ -60,7 +60,6 @@ const locationPinSchema = new Schema(
 	}
 );
 
-// Create the 2dsphere index for GMAPS
-locationPinSchema.index({ location: "2dsphere" });
+locationPinSchema.index({ "location.coordinates": "2dsphere" });
 
 module.exports = model("LocationPin", locationPinSchema);

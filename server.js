@@ -45,8 +45,20 @@ app.use(
 			directives: {
 				scriptSrc: [
 					"'self'",
-					"https://maps.googleapis.com",
-					"https://maps.google.com",
+					"https://api.mapbox.com",
+					"https://events.mapbox.com",
+				],
+				imgSrc: [
+					"'self'",
+					"https://api.mapbox.com",
+					"https://events.mapbox.com",
+					"blob:",
+					"data:",
+				],
+				connectSrc: [
+					"'self'",
+					"https://api.mapbox.com",
+					"https://events.mapbox.com",
 				],
 			},
 		},

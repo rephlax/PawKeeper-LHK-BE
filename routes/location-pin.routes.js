@@ -183,4 +183,29 @@ router.get("/all-pins", isAuthenticated, async (req, res) => {
 	}
 });
 
+router.get("/in-bounds", isAuthenticated, async (req, res) => {
+	try {
+		const { north, south, east, west } = req.query;
+
+		const pins = await LocationPin.find({
+			"location.coordinates": {
+				$geoWithin: {
+					$box: [
+						[parseFloat(west), parseFloat(south)],
+						[parseFloat(east), parseFloat(north)],
+					],
+				},
+			},
+		}).populate("user", "username profilePicture sitter");
+
+		res.status(200).json(pins);
+	} catch (error) {
+		console.error("Bounds search error:", error);
+		res.status(500).json({
+			message: "Error fetching pins in bounds",
+			error: error.message,
+		});
+	}
+});
+
 module.exports = router;
