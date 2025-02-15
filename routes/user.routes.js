@@ -26,14 +26,19 @@ router.post("/signup", async (req, res) => {
       ownedPets: req.body.ownedPets,
       profilePicture: req.body.profilePicture,
       rate: req.body.rate || 0,
-      location: req.body.location,
+      location: {
+        coordinates: {
+          latitude: req.body.latitude || 0,
+          longitude: req.body.longitude || 0,
+        },
+      },
       rating: req.body.rating,
       reviews: req.body.reviews,
       sitter: req.body.sitter,
     };
     console.log(req.body);
     const createdUser = await UserModel.create(hashedUser);
-    console.log(createdUser);
+    // console.log(createdUser);
     res.status(201).json({ message: "User created Sucessfuly", createdUser });
   } catch (error) {
     console.log(error);
@@ -62,13 +67,11 @@ router.post("/login", async (req, res) => {
           algorithm: "HS256",
           expiresIn: "10d",
         });
-        res
-          .status(200)
-          .json({
-            message: "here is the token",
-            authToken,
-            userId: foundUser._id,
-          });
+        res.status(200).json({
+          message: "here is the token",
+          authToken,
+          userId: foundUser._id,
+        });
       } else {
         res.status(403).json({ message: "Invalid Crecentials" });
       }
@@ -84,6 +87,7 @@ router.get("/user/:userId", isAuthenticated, async (req, res) => {
 
   try {
     const oneUser = await UserModel.findById(userId);
+    console.log(oneUser)
     res.status(200).json(oneUser);
   } catch (error) {
     console.log(error);
@@ -93,7 +97,7 @@ router.get("/user/:userId", isAuthenticated, async (req, res) => {
 
 router.patch("/update-user/:userId", isAuthenticated, async (req, res) => {
   const { userId } = req.params;
-  console.log(req.body);
+  
   try {
     const foundUser = await UserModel.findByIdAndUpdate(userId, req.body, {
       new: true,
@@ -113,7 +117,7 @@ router.patch(
     const { userId } = req.params;
 
     const foundUser = await UserModel.findById(userId);
-    
+
     const isValidPassword = bcrypt.compareSync(
       req.body.old,
       foundUser.password
@@ -121,9 +125,8 @@ router.patch(
 
     try {
       if (!isValidPassword) {
-        res.status(403).json({message: "Incorrect Credentials"})
-       
-      }else {
+        res.status(403).json({ message: "Incorrect Credentials" });
+      } else {
         const newSalt = bcrypt.genSaltSync(12);
         const newHashedPassword = bcrypt.hashSync(req.body.new, newSalt);
 
@@ -137,9 +140,7 @@ router.patch(
         );
       }
 
-      res
-      .status(201)
-      .json({ message: "Passwor changed correctly",});
+      res.status(201).json({ message: "Passwor changed correctly" });
     } catch (error) {
       console.log(error);
       res.status(500).json({ message: `${error}` });

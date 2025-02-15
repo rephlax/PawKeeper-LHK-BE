@@ -1,8 +1,8 @@
-const mongoose = require('mongoose');
+const { Schema, model } = require('mongoose');
 
-const locationPinSchema = new mongoose.Schema({
+const locationPinSchema = new Schema({
     user: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: Schema.Types.ObjectId,
         ref: 'User',
         required: true,
         unique: true
@@ -19,19 +19,10 @@ const locationPinSchema = new mongoose.Schema({
         type: {
             type: String,
             enum: ['Point'],
-            default: 'Point'
+            required: true
         },
         coordinates: {
-            type: {
-                latitude: {
-                    type: Number,
-                    required: true
-                },
-                longitude: {
-                    type: Number,
-                    required: true
-                }
-            },
+            type: [Number],  // [longitude, latitude]
             required: true
         }
     },
@@ -65,8 +56,7 @@ const locationPinSchema = new mongoose.Schema({
     timestamps: true 
 });
 
-locationPinSchema.index({ 
-    'location.coordinates': '2dsphere' 
-});
+// Create the 2dsphere index for GMAPS
+locationPinSchema.index({ location: '2dsphere' });
 
-module.exports = mongoose.model('LocationPin', locationPinSchema);
+module.exports = model('LocationPin', locationPinSchema);

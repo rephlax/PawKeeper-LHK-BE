@@ -1,6 +1,4 @@
-// socketLocationHandlers.js
 const LocationPin = require('../models/LocationPin.model');
-const rateLimit = require('express-rate-limit');
 
 const locationSocketHandlers = (io, socket) => {
   if (!socket.user) {
@@ -8,7 +6,6 @@ const locationSocketHandlers = (io, socket) => {
     return;
   }
 
-  // Location sharing event with rate limiting
   socket.on('share_location', async (locationData, callback) => {
     try {
       if (!isValidLocation(locationData)) {
@@ -19,16 +16,13 @@ const locationSocketHandlers = (io, socket) => {
         return callback({ error: 'Not authorized' });
       }
 
-      // Update or create location pin
       const updatedPin = await LocationPin.findOneAndUpdate(
         { user: socket.user._id },
         {
           location: {
-            coordinates: {
-              latitude: locationData.lat,
-              longitude: locationData.lng
-            }
-          },
+            type: 'Point',
+            coordinates: [locationData.lng, locationData.lat] // MongoDB expects [longitude, latitude]
+          }
         },
         { upsert: true, new: true }
       );
@@ -40,11 +34,11 @@ const locationSocketHandlers = (io, socket) => {
 
       callback({ success: true, pin: updatedPin });
     } catch (error) {
+      console.error('Location update error:', error);
       callback({ error: 'Location update failed' });
     }
   });
 
-  // Search for nearby sitters
   socket.on('search_nearby_sitters', async (searchParams, callback) => {
     try {
       const nearbyPins = await LocationPin.aggregate([
@@ -63,7 +57,36 @@ const locationSocketHandlers = (io, socket) => {
 
       callback({ sitters: nearbyPins });
     } catch (error) {
+      console.error('Search failed:', error);
       callback({ error: 'Search failed' });
+    }
+  });
+
+  socket.on('center_map', (location) => {
+    if (isValidLocation(location)) {
+      socket.broadcast.emit('center_map', location);
+    }
+  });
+
+  socket.on('toggle_pin_creation', (data) => {
+    if (socket.user.sitter) {
+      socket.broadcast.emit('toggle_pin_creation', data);
+    }
+  });
+
+  socket.on('pin_created', async () => {
+    try {
+      const pin = await LocationPin.findOne({ user: socket.user._id })
+        .populate('user', 'username profilePicture');
+        
+      if (pin) {
+        io.emit('pin_created', {
+          pin,
+          userId: socket.user._id
+        });
+      }
+    } catch (error) {
+      console.error('Error broadcasting pin creation:', error);
     }
   });
 };
