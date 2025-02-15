@@ -5,6 +5,12 @@ const express = require("express");
 const cors = require("cors");
 const app = express();
 
+// For documentation with Swagger
+const swaggerUI = require("swagger-ui-express");
+const docs = require('./docs');
+
+
+
 // const allowedOrigins = [
 //   'https://pawkeeper.netlify.app',
 //   'https://pawkeeper-lhk-be.onrender.com',
@@ -61,6 +67,8 @@ app.use("/rooms", roomRoutes);
 
 const locationPinRoutes = require("./routes/location-pin.routes");
 app.use("/api/location-pins", locationPinRoutes);
+
+app.use("/pawkeeper", swaggerUI.serve, swaggerUI.setup(docs));
 
 app.use((err, req, res, next) => {
   if (err.name === 'CORSError') {
