@@ -166,4 +166,20 @@ router.delete("/delete", isAuthenticated, async (req, res) => {
 	}
 });
 
+router.get("/all-pins", isAuthenticated, async (req, res) => {
+	try {
+		const allPins = await LocationPin.find().populate(
+			"user",
+			"username profilePicture sitter"
+		);
+
+		res.status(200).json(allPins);
+	} catch (error) {
+		res.status(500).json({
+			message: "Error fetching pins",
+			error: error.message,
+		});
+	}
+});
+
 module.exports = router;
