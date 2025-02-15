@@ -1,3 +1,9 @@
+const createPet = require("./Pet/createPet");
+const deletePet = require("./Pet/deletePet");
+const getAllPets = require("./Pet/getAllPets");
+const getAllPetsByUserId = require("./Pet/getAllPetsByUserId");
+const getOnePetOfOneUser = require("./Pet/getOnePetOfOneUser");
+const updatePet = require("./Pet/updatePet");
 const deleteUser = require("./User/deleteUser");
 const getAllUsers = require("./User/getAllUsers");
 const getUserById = require("./User/getUserById");
@@ -35,5 +41,29 @@ module.exports = {
     "/user/delete-user/{userId}": {
       ...deleteUser,
     },
+
+    "/pets/": {
+      ...getAllPets,
+    },
+
+    "/pets/{userId}": {
+      ...getAllPetsByUserId,
+    },
+
+    "/pets/{userId}/{petId}": {
+      ...getOnePetOfOneUser,
+    },
+
+    "/pets/{userId}": {
+      ...createPet,
+    },
+
+    "/pets/{petId}": {
+        ...updatePet
+    },
+
+    "/pets/{petId}": {
+        ...deletePet
+    }
   },
 };

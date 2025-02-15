@@ -79,9 +79,7 @@ router.patch("/:petId", isAuthenticated, async (req, res) => {
 });
 
 router.get("/:userId/:petId", isAuthenticated, async (req, res) => {
-  const { petId , userId} = req.params;
-  console.log(req.params)
-  console.log(petId)
+  const { petId , userId} = req.params; 
   try {
     const onePet = await PetModel.findOne({ _id: petId , owner: userId});
     if (!onePet) {
@@ -108,5 +106,5 @@ router.delete("/:petId", isAuthenticated, async (req, res) => {
   }
 });
 
-//TODO: create Pet routes to get pets by id
+
 module.exports = router;

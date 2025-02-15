@@ -1,8 +1,8 @@
 module.exports = {
     get: {
-        tags: ["User CRUD operations and Authentication"], // operation's tag.
-        description: "Get all Users", // operation's desc.
-        operationId: "getAllUsers", // unique operation id.
+        tags: ["Pet CRUD operations"], // operation's tag.
+        description: "Get all Pets", // operation's desc.
+        operationId: "getAllPets", // unique operation id.
         parameters: [], // expected params.
         requestBody: {},
         // expected responses
@@ -13,12 +13,12 @@ module.exports = {
           },
   
           200: {
-            description: "Users retrieved successfully", // response desc.
+            description: "Pets retrieved successfully", // response desc.
             content: {
               // content-type
               "application/json": {
                 schema: {
-                  $ref: "#/components/schemas/UserModel", // Todo model
+                  $ref: "#/components/schemas/PetModel", 
                 },
               },
             },
