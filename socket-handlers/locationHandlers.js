@@ -8,12 +8,25 @@ const locationSocketHandlers = (io, socket) => {
 
 	socket.on("share_location", async (locationData, callback) => {
 		try {
+			console.log("Received location data:", {
+				locationData,
+				user: socket.user,
+				socketId: socket.id,
+			});
+
 			if (!isValidLocation(locationData)) {
+				console.error("Invalid location data:", locationData);
 				return callback({ error: "Invalid location data" });
 			}
 
+			if (!socket.user) {
+				console.error("No user in socket");
+				return callback({ error: "User not authenticated" });
+			}
+
 			if (!socket.user.sitter) {
-				return callback({ error: "Not authorized" });
+				console.error("User not a sitter:", socket.user);
+				return callback({ error: "Not authorized - user must be a sitter" });
 			}
 
 			const updatedPin = await LocationPin.findOneAndUpdate(
@@ -21,21 +34,23 @@ const locationSocketHandlers = (io, socket) => {
 				{
 					location: {
 						type: "Point",
-						coordinates: [locationData.lng, locationData.lat], // MongoDB expects [longitude, latitude]
+						coordinates: [locationData.lng, locationData.lat],
 					},
 				},
 				{ upsert: true, new: true }
 			);
 
-			const nearbyUsers = await findNearbyUsers(locationData);
-			nearbyUsers.forEach((user) => {
-				io.to(user.socketId).emit("nearby_sitter_update", updatedPin);
-			});
+			console.log("Pin updated:", updatedPin);
 
 			callback({ success: true, pin: updatedPin });
 		} catch (error) {
-			console.error("Location update error:", error);
-			callback({ error: "Location update failed" });
+			console.error("Location update error:", {
+				error: error.message,
+				stack: error.stack,
+				locationData,
+				user: socket.user,
+			});
+			callback({ error: "Location update failed", details: error.message });
 		}
 	});
 
