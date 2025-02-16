@@ -6,7 +6,7 @@ const locationSocketHandlers = (io, socket) => {
 		return;
 	}
 
-	socket.on("share_location", async (locationData, callback) => {
+	socket.on("share_location", async (locationData) => {
 		try {
 			console.log("Received location data:", {
 				locationData,
@@ -16,17 +16,22 @@ const locationSocketHandlers = (io, socket) => {
 
 			if (!isValidLocation(locationData)) {
 				console.error("Invalid location data:", locationData);
-				return callback({ error: "Invalid location data" });
+				socket.emit("location_error", { error: "Invalid location data" });
+				return;
 			}
 
 			if (!socket.user) {
 				console.error("No user in socket");
-				return callback({ error: "User not authenticated" });
+				socket.emit("location_error", { error: "User not authenticated" });
+				return;
 			}
 
 			if (!socket.user.sitter) {
 				console.error("User not a sitter:", socket.user);
-				return callback({ error: "Not authorized - user must be a sitter" });
+				socket.emit("location_error", {
+					error: "Not authorized - user must be a sitter",
+				});
+				return;
 			}
 
 			const updatedPin = await LocationPin.findOneAndUpdate(
@@ -41,8 +46,7 @@ const locationSocketHandlers = (io, socket) => {
 			);
 
 			console.log("Pin updated:", updatedPin);
-
-			callback({ success: true, pin: updatedPin });
+			socket.emit("location_updated", { success: true, pin: updatedPin });
 		} catch (error) {
 			console.error("Location update error:", {
 				error: error.message,
@@ -50,7 +54,10 @@ const locationSocketHandlers = (io, socket) => {
 				locationData,
 				user: socket.user,
 			});
-			callback({ error: "Location update failed", details: error.message });
+			socket.emit("location_error", {
+				error: "Location update failed",
+				details: error.message,
+			});
 		}
 	});
 
@@ -90,28 +97,39 @@ const locationSocketHandlers = (io, socket) => {
 	});
 
 	socket.on("viewport_update", async (viewport) => {
-		socket.viewport = viewport;
+		try {
+			socket.viewport = viewport;
 
-		if (viewport.zoom >= 9) {
-			const bounds = {
-				north: viewport.bounds.north,
-				south: viewport.bounds.south,
-				east: viewport.bounds.east,
-				west: viewport.bounds.west,
-			};
+			// Validation for viewport and bounds
+			if (!viewport?.zoom || !viewport?.bounds) {
+				console.log("Invalid viewport data:", viewport);
+				return;
+			}
 
-			const nearbyPins = await LocationPin.find({
-				"location.coordinates": {
-					$geoWithin: {
-						$box: [
-							[bounds.west, bounds.south],
-							[bounds.east, bounds.north],
-						],
+			if (viewport.zoom >= 9) {
+				const bounds = viewport.bounds;
+
+				// Validate all bounds values exist
+				if (!bounds.north || !bounds.south || !bounds.east || !bounds.west) {
+					console.log("Invalid bounds data:", bounds);
+					return;
+				}
+
+				const nearbyPins = await LocationPin.find({
+					"location.coordinates": {
+						$geoWithin: {
+							$box: [
+								[bounds.west, bounds.south],
+								[bounds.east, bounds.north],
+							],
+						},
 					},
-				},
-			}).populate("user", "username profilePicture sitter");
+				}).populate("user", "username profilePicture sitter");
 
-			socket.emit("nearby_pins", nearbyPins);
+				socket.emit("nearby_pins", nearbyPins);
+			}
+		} catch (error) {
+			console.error("Viewport update error:", error);
 		}
 	});
 
