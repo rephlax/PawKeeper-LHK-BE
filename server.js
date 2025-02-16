@@ -24,13 +24,11 @@ const allowedOrigins = [
 
 const io = new Server(httpServer, {
 	cors: {
-		origin: function (origin, callback) {
-			if (!origin) return callback(null, true);
-			if (allowedOrigins.indexOf(origin) === -1) {
-				return callback(new Error("Not allowed by CORS"));
-			}
-			return callback(null, true);
-		},
+		origin: [
+			"https://pawkeeper.netlify.app",
+			"http://localhost:5173",
+			"http://localhost:3000",
+		],
 		credentials: true,
 		methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
 		allowedHeaders: ["Content-Type", "Authorization", "Origin", "Accept"],

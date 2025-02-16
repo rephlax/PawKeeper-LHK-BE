@@ -7,9 +7,7 @@ const app = express();
 
 // For documentation with Swagger
 const swaggerUI = require("swagger-ui-express");
-const docs = require('./docs');
-
-
+const docs = require("./docs");
 
 // const allowedOrigins = [
 //   'https://pawkeeper.netlify.app',
@@ -17,33 +15,50 @@ const docs = require('./docs');
 //   'http://localhost:5173',
 //   'http://localhost:5005'
 // ];
-const origin = process.env.ORIGIN || 'http://localhost:5173'
+const origin = process.env.ORIGIN || "http://localhost:5173";
 
 app.use(
-  cors({
-    origin:   `${origin}`,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
-    maxAge: 86400,
-  })
+	cors({
+		origin: [
+			"https://pawkeeper.netlify.app",
+			"http://localhost:5173",
+			"http://localhost:3000",
+		],
+		methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+		credentials: true,
+		allowedHeaders: ["Content-Type", "Authorization", "Origin", "Accept"],
+		maxAge: 86400,
+	})
 );
 
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', `${origin}`);
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Origin, Accept');
-  res.header('Access-Control-Allow-Credentials', true);
-  next();
+	res.header("Access-Control-Allow-Origin", `${origin}`);
+	res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH");
+	res.header(
+		"Access-Control-Allow-Headers",
+		"Content-Type, Authorization, Origin, Accept"
+	);
+	res.header("Access-Control-Allow-Credentials", true);
+	next();
+});
+
+app.use((req, res, next) => {
+	console.log("Request:", {
+		method: req.method,
+		url: req.url,
+		origin: req.get("origin"),
+		headers: req.headers,
+	});
+	next();
 });
 
 require("./config")(app);
 
-app.get('/debug-env', (req, res) => {
-  res.json({
-    origin: process.env.ORIGIN,
-    port: process.env.PORT
-  });
+app.get("/debug-env", (req, res) => {
+	res.json({
+		origin: process.env.ORIGIN,
+		port: process.env.PORT,
+	});
 });
 
 // 👇 Start handling routes here
@@ -71,14 +86,14 @@ app.use("/api/location-pins", locationPinRoutes);
 app.use("/pawkeeper", swaggerUI.serve, swaggerUI.setup(docs));
 
 app.use((err, req, res, next) => {
-  if (err.name === 'CORSError') {
-    res.status(403).json({ 
-      message: 'CORS error', 
-      error: err.message 
-    });
-  } else {
-    next(err);
-  }
+	if (err.name === "CORSError") {
+		res.status(403).json({
+			message: "CORS error",
+			error: err.message,
+		});
+	} else {
+		next(err);
+	}
 });
 
 require("./error-handling")(app);
