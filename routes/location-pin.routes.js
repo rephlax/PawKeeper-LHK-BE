@@ -82,6 +82,33 @@ router.get("/:pinId", isAuthenticated, async (req, res) => {
 	}
 });
 
+router.get("/all-pins", isAuthenticated, async (req, res) => {
+	try {
+		console.log("Fetching all pins, auth user:", req.payload);
+
+		const allPins = await LocationPin.find().populate(
+			"user",
+			"username profilePicture sitter"
+		);
+
+		console.log("Found pins:", allPins.length);
+
+		res.status(200).json(allPins);
+	} catch (error) {
+		console.error("Error fetching all pins:", {
+			error: error.message,
+			stack: error.stack,
+			user: req.payload?._id,
+		});
+
+		res.status(500).json({
+			message: "Error fetching pins",
+			error: error.message,
+			details: process.env.NODE_ENV === "development" ? error.stack : undefined,
+		});
+	}
+});
+
 // Create location pin
 router.post("/create", isAuthenticated, async (req, res) => {
 	try {
@@ -186,23 +213,6 @@ router.delete("/delete", isAuthenticated, async (req, res) => {
 		res.status(200).json({ message: "Location pin deleted successfully" });
 	} catch (error) {
 		res.status(500).json({ message: error.message });
-	}
-});
-
-router.get("/all-pins", isAuthenticated, async (req, res) => {
-	try {
-		const allPins = await LocationPin.find().populate(
-			"user",
-			"username profilePicture sitter"
-		);
-
-		res.status(200).json(allPins);
-	} catch (error) {
-		console.error("Error fetching all pins:", error);
-		res.status(500).json({
-			message: "Error fetching pins",
-			error: error.message,
-		});
 	}
 });
 
