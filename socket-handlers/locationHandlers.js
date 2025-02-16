@@ -78,8 +78,25 @@ const locationSocketHandlers = (io, socket) => {
 		socket.viewport = viewport;
 
 		if (viewport.zoom >= 9) {
-			const nearbyUsers = await findUsersInBounds(viewport);
-			socket.emit("nearby_users", nearbyUsers);
+			const bounds = {
+				north: viewport.bounds.north,
+				south: viewport.bounds.south,
+				east: viewport.bounds.east,
+				west: viewport.bounds.west,
+			};
+
+			const nearbyPins = await LocationPin.find({
+				"location.coordinates": {
+					$geoWithin: {
+						$box: [
+							[bounds.west, bounds.south],
+							[bounds.east, bounds.north],
+						],
+					},
+				},
+			}).populate("user", "username profilePicture sitter");
+
+			socket.emit("nearby_pins", nearbyPins);
 		}
 	});
 

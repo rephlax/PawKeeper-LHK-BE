@@ -186,6 +186,9 @@ router.get("/all-pins", isAuthenticated, async (req, res) => {
 router.get("/in-bounds", isAuthenticated, async (req, res) => {
 	try {
 		const { north, south, east, west } = req.query;
+		if (!north || !south || !east || !west) {
+			return res.status(400).json({ message: "Missing bounds parameters" });
+		}
 
 		const pins = await LocationPin.find({
 			"location.coordinates": {
@@ -200,11 +203,7 @@ router.get("/in-bounds", isAuthenticated, async (req, res) => {
 
 		res.status(200).json(pins);
 	} catch (error) {
-		console.error("Bounds search error:", error);
-		res.status(500).json({
-			message: "Error fetching pins in bounds",
-			error: error.message,
-		});
+		res.status(500).json({ message: error.message });
 	}
 });
 

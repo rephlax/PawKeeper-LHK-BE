@@ -43,23 +43,23 @@ app.use(
 	helmet({
 		contentSecurityPolicy: {
 			directives: {
+				defaultSrc: ["'self'"],
 				scriptSrc: [
 					"'self'",
-					"https://api.mapbox.com",
-					"https://events.mapbox.com",
+					"'unsafe-inline'",
+					"api.mapbox.com",
+					"events.mapbox.com",
 				],
-				imgSrc: [
-					"'self'",
-					"https://api.mapbox.com",
-					"https://events.mapbox.com",
-					"blob:",
-					"data:",
-				],
+				styleSrc: ["'self'", "'unsafe-inline'", "api.mapbox.com"],
+				imgSrc: ["'self'", "data:", "blob:", "*.mapbox.com", "api.mapbox.com"],
 				connectSrc: [
 					"'self'",
-					"https://api.mapbox.com",
-					"https://events.mapbox.com",
+					"api.mapbox.com",
+					"events.mapbox.com",
+					"https://*.tiles.mapbox.com",
 				],
+				workerSrc: ["'self'", "blob:"],
+				childSrc: ["'self'", "blob:"],
 			},
 		},
 	})
