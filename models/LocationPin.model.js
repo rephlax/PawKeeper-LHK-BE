@@ -19,19 +19,23 @@ const locationPinSchema = new Schema(
 			type: {
 				type: String,
 				enum: ["Point"],
-				required: true,
 				default: "Point",
 			},
 			coordinates: {
-				type: [Number], // [longitude, latitude]
+				type: [Number],
 				required: true,
 				validate: {
-					validator: function(v) {
-					  return v.length === 2 && 
-							 v[0] >= -180 && v[0] <= 180 && 
-							 v[1] >= -90 && v[1] <= 90;
+					validator: function (v) {
+						return (
+							v.length === 2 &&
+							v[0] >= -180 &&
+							v[0] <= 180 &&
+							v[1] >= -90 &&
+							v[1] <= 90
+						);
 					},
-					message: 'Invalid coordinates'
+					message: "Invalid coordinates",
+				},
 			},
 		},
 		serviceRadius: {
@@ -68,6 +72,6 @@ const locationPinSchema = new Schema(
 	}
 );
 
-locationPinSchema.index({ "location": "2dsphere" });
+locationPinSchema.index({ location: "2dsphere" });
 
 module.exports = model("LocationPin", locationPinSchema);
