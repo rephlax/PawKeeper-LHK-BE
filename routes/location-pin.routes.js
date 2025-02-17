@@ -115,7 +115,6 @@ router.post("/create", isAuthenticated, async (req, res) => {
 		console.log("Creating pin with data:", {
 			userId: req.payload._id,
 			body: req.body,
-			auth: req.headers.authorization,
 		});
 
 		const user = await UserModel.findById(req.payload._id);
@@ -125,12 +124,12 @@ router.post("/create", isAuthenticated, async (req, res) => {
 				.json({ message: "Only pet sitters can create location pins" });
 		}
 
-		if (!req.body.location.coordinates[0] || !req.body.location.coordinates[1]) {
+		if (!req.body.longitude || !req.body.latitude) {
 			return res.status(400).json({
 				message: "Invalid location data",
 				details: {
-					longitude: req.body.location.coordinates[0],
-					latitude: req.body.location.coordinates[1],
+					longitude: req.body.longitude,
+					latitude: req.body.latitude,
 				},
 			});
 		}
@@ -143,7 +142,7 @@ router.post("/create", isAuthenticated, async (req, res) => {
 			description: req.body.description,
 			location: {
 				type: "Point",
-				coordinates: [req.body.location.coordinates[0], req.body.location.coordinates[1]],
+				coordinates: [req.body.longitude, req.body.latitude],
 			},
 			serviceRadius: req.body.serviceRadius,
 			services: req.body.services,
@@ -152,7 +151,6 @@ router.post("/create", isAuthenticated, async (req, res) => {
 		});
 
 		console.log("Pin created successfully:", newPin);
-
 		res.status(201).json(newPin);
 	} catch (error) {
 		console.error("Pin creation error:", {
@@ -160,7 +158,7 @@ router.post("/create", isAuthenticated, async (req, res) => {
 			stack: error.stack,
 			body: req.body,
 		});
-		res.status(500).json({ message: error.message, stack: error.stack });
+		res.status(500).json({ message: error.message });
 	}
 });
 
@@ -184,7 +182,10 @@ router.put("/update", isAuthenticated, async (req, res) => {
 			description: req.body.description,
 			location: {
 				type: "Point",
-				coordinates: [req.body.location.coordinates[0], req.body.location.coordinates[1]],
+				coordinates: [
+					req.body.location.coordinates[0],
+					req.body.location.coordinates[1],
+				],
 			},
 			serviceRadius: req.body.serviceRadius,
 			services: req.body.services,
