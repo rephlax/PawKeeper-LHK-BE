@@ -223,20 +223,55 @@ router.get("/in-bounds", isAuthenticated, async (req, res) => {
 			return res.status(400).json({ message: "Missing bounds parameters" });
 		}
 
+		const nLat = parseFloat(north);
+		const sLat = parseFloat(south);
+		const eLng = parseFloat(east);
+		const wLng = parseFloat(west);
+
+		// Validate coordinates
+		if (isNaN(nLat) || isNaN(sLat) || isNaN(eLng) || isNaN(wLng)) {
+			return res.status(400).json({ message: "Invalid coordinate values" });
+		}
+
+		const boundingBox = {
+			type: "Polygon",
+			coordinates: [
+				[
+					[wLng, sLat], // Southwest
+					[eLng, sLat], // Southeast
+					[eLng, nLat], // Northeast
+					[wLng, nLat], // Northwest
+					[wLng, sLat],
+				],
+			],
+		};
+
 		const pins = await LocationPin.find({
-			"location.coordinates": {
+			location: {
 				$geoWithin: {
-					$box: [
-						[parseFloat(west), parseFloat(south)],
-						[parseFloat(east), parseFloat(north)],
-					],
+					$geometry: boundingBox,
 				},
 			},
 		}).populate("user", "username profilePicture sitter");
 
+		console.log("Bounds query successful:", {
+			bounds: { north, south, east, west },
+			pinsFound: pins.length,
+		});
+
 		res.status(200).json(pins);
 	} catch (error) {
-		res.status(500).json({ message: error.message });
+		console.error("Error in in-bounds query:", {
+			error: error.message,
+			stack: error.stack,
+			query: req.query,
+		});
+
+		res.status(500).json({
+			message: "Error fetching pins in bounds",
+			error: error.message,
+			details: process.env.NODE_ENV === "development" ? error.stack : undefined,
+		});
 	}
 });
 
