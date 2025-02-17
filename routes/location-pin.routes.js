@@ -125,12 +125,12 @@ router.post("/create", isAuthenticated, async (req, res) => {
 				.json({ message: "Only pet sitters can create location pins" });
 		}
 
-		if (!req.body.longitude || !req.body.latitude) {
+		if (!req.body.location.coordinates[0] || !req.body.location.coordinates[1]) {
 			return res.status(400).json({
 				message: "Invalid location data",
 				details: {
-					longitude: req.body.longitude,
-					latitude: req.body.latitude,
+					longitude: req.body.location.coordinates[0],
+					latitude: req.body.location.coordinates[1],
 				},
 			});
 		}
@@ -143,7 +143,7 @@ router.post("/create", isAuthenticated, async (req, res) => {
 			description: req.body.description,
 			location: {
 				type: "Point",
-				coordinates: [req.body.longitude, req.body.latitude],
+				coordinates: [req.body.location.coordinates[0], req.body.location.coordinates[1]],
 			},
 			serviceRadius: req.body.serviceRadius,
 			services: req.body.services,
