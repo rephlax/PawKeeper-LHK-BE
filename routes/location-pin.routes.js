@@ -220,42 +220,63 @@ router.get("/in-bounds", isAuthenticated, async (req, res) => {
 	try {
 		const { north, south, east, west } = req.query;
 
-		if (!north || !south || !east || !west) {
-			return res.status(400).json({ message: "Missing bounds parameters" });
+		// Validate inputs
+		const coordinates = {
+			north: parseFloat(north),
+			south: parseFloat(south),
+			east: parseFloat(east),
+			west: parseFloat(west),
+		};
+
+		// Early validation
+		if (Object.values(coordinates).some(isNaN)) {
+			return res.status(400).json({
+				message: "Invalid coordinate values",
+				details: coordinates,
+			});
 		}
 
-		const coordinates = [
-			[parseFloat(west), parseFloat(south)],
-			[parseFloat(east), parseFloat(south)],
-			[parseFloat(east), parseFloat(north)],
-			[parseFloat(west), parseFloat(north)],
-			[parseFloat(west), parseFloat(south)],
+		// Create polygon points in the correct order
+		const polygonCoordinates = [
+			[coordinates.west, coordinates.south],
+			[coordinates.east, coordinates.south],
+			[coordinates.east, coordinates.north],
+			[coordinates.west, coordinates.north],
+			[coordinates.west, coordinates.south],
 		];
 
-		const isValid = coordinates.every(
-			([lng, lat]) =>
-				!isNaN(lng) &&
-				!isNaN(lat) &&
-				lng >= -180 &&
-				lng <= 180 &&
-				lat >= -90 &&
-				lat <= 90
-		);
-
-		if (!isValid) {
-			return res.status(400).json({ message: "Invalid coordinate values" });
+		// Validate coordinate ranges
+		if (
+			!polygonCoordinates.every(
+				([lng, lat]) => lng >= -180 && lng <= 180 && lat >= -90 && lat <= 90
+			)
+		) {
+			return res.status(400).json({
+				message: "Coordinates out of range",
+				details: polygonCoordinates,
+			});
 		}
 
-		const pins = await LocationPin.find({
+		const query = {
 			location: {
 				$geoWithin: {
 					$geometry: {
 						type: "Polygon",
-						coordinates: [coordinates],
+						coordinates: [polygonCoordinates],
 					},
 				},
 			},
-		}).populate("user", "username profilePicture sitter");
+		};
+
+		const pins = await LocationPin.find(query).populate(
+			"user",
+			"username profilePicture sitter"
+		);
+
+		console.log("Query executed successfully:", {
+			bounds: coordinates,
+			pinsFound: pins.length,
+		});
 
 		return res.status(200).json(pins);
 	} catch (error) {
