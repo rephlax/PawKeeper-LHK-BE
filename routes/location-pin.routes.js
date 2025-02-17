@@ -184,7 +184,7 @@ router.put("/update", isAuthenticated, async (req, res) => {
 			description: req.body.description,
 			location: {
 				type: "Point",
-				coordinates: [req.body.longitude, req.body.latitude],
+				coordinates: [req.body.location.coordinates[0], req.body.location.coordinates[1]],
 			},
 			serviceRadius: req.body.serviceRadius,
 			services: req.body.services,
