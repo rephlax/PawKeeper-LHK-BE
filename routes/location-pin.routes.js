@@ -7,14 +7,11 @@ const isAuthenticated = require("../middlewares/auth.middleware");
 router.get("/all-pins", isAuthenticated, async (req, res) => {
 	try {
 		console.log("Fetching all pins, auth user:", req.payload);
-
 		const allPins = await LocationPin.find().populate(
 			"user",
 			"username profilePicture sitter"
 		);
-
 		console.log("Found pins:", allPins.length);
-
 		res.status(200).json(allPins);
 	} catch (error) {
 		console.error("Error fetching all pins:", {
@@ -22,7 +19,6 @@ router.get("/all-pins", isAuthenticated, async (req, res) => {
 			stack: error.stack,
 			user: req.payload?._id,
 		});
-
 		res.status(500).json({
 			message: "Error fetching pins",
 			error: error.message,
@@ -31,11 +27,86 @@ router.get("/all-pins", isAuthenticated, async (req, res) => {
 	}
 });
 
+router.get("/in-bounds", isAuthenticated, async (req, res) => {
+	try {
+		const { north, south, east, west } = req.query;
+
+		const coordinates = {
+			north: parseFloat(north),
+			south: parseFloat(south),
+			east: parseFloat(east),
+			west: parseFloat(west),
+		};
+
+		if (Object.values(coordinates).some(isNaN)) {
+			return res.status(400).json({
+				message: "Invalid coordinate values",
+				details: coordinates,
+			});
+		}
+
+		const polygonCoordinates = [
+			[coordinates.west, coordinates.south],
+			[coordinates.east, coordinates.south],
+			[coordinates.east, coordinates.north],
+			[coordinates.west, coordinates.north],
+			[coordinates.west, coordinates.south],
+		];
+
+		if (
+			!polygonCoordinates.every(
+				([lng, lat]) => lng >= -180 && lng <= 180 && lat >= -90 && lat <= 90
+			)
+		) {
+			return res.status(400).json({
+				message: "Coordinates out of range",
+				details: polygonCoordinates,
+			});
+		}
+
+		const query = {
+			location: {
+				$geoWithin: {
+					$geometry: {
+						type: "Polygon",
+						coordinates: [polygonCoordinates],
+					},
+				},
+			},
+		};
+
+		const pins = await LocationPin.find(query).populate(
+			"user",
+			"username profilePicture sitter"
+		);
+
+		console.log("Query executed successfully:", {
+			bounds: coordinates,
+			pinsFound: pins.length,
+		});
+
+		return res.status(200).json(pins);
+	} catch (error) {
+		console.error("Error in in-bounds query:", {
+			error: error.message,
+			stack: error.stack,
+			query: req.query,
+		});
+		return res.status(500).json({
+			message: "Error fetching pins in bounds",
+			error: error.message,
+		});
+	}
+});
+
 router.get("/search", isAuthenticated, async (req, res) => {
 	try {
-		const { userId } = req.query;
+		const { userId, latitude, longitude, maxDistance = 10 } = req.query;
 		console.log("Search request received:", {
 			userId,
+			latitude,
+			longitude,
+			maxDistance,
 			headers: req.headers,
 			auth: req.payload,
 		});
@@ -51,6 +122,7 @@ router.get("/search", isAuthenticated, async (req, res) => {
 			);
 			return res.status(200).json(userPin ? [userPin] : []);
 		}
+
 		if (latitude && longitude) {
 			const pins = await LocationPin.aggregate([
 				{
@@ -60,7 +132,7 @@ router.get("/search", isAuthenticated, async (req, res) => {
 							coordinates: [parseFloat(longitude), parseFloat(latitude)],
 						},
 						distanceField: "distance",
-						maxDistance: maxDistance * 1000,
+						maxDistance: parseFloat(maxDistance) * 1000,
 						spherical: true,
 					},
 				},
@@ -109,13 +181,11 @@ router.get("/:pinId", isAuthenticated, async (req, res) => {
 	}
 });
 
-// Create location pin
 router.post("/create", isAuthenticated, async (req, res) => {
 	try {
 		console.log("Creating pin with data:", {
 			userId: req.payload._id,
 			body: req.body,
-			auth: req.headers.authorization,
 		});
 
 		const user = await UserModel.findById(req.payload._id);
@@ -125,12 +195,12 @@ router.post("/create", isAuthenticated, async (req, res) => {
 				.json({ message: "Only pet sitters can create location pins" });
 		}
 
-		if (!req.body.location.coordinates[0] || !req.body.location.coordinates[1]) {
+		if (!req.body.longitude || !req.body.latitude) {
 			return res.status(400).json({
 				message: "Invalid location data",
 				details: {
-					longitude: req.body.location.coordinates[0],
-					latitude: req.body.location.coordinates[1],
+					longitude: req.body.longitude,
+					latitude: req.body.latitude,
 				},
 			});
 		}
@@ -143,7 +213,10 @@ router.post("/create", isAuthenticated, async (req, res) => {
 			description: req.body.description,
 			location: {
 				type: "Point",
-				coordinates: [req.body.location.coordinates[0], req.body.location.coordinates[1]],
+				coordinates: [
+					parseFloat(req.body.longitude),
+					parseFloat(req.body.latitude),
+				],
 			},
 			serviceRadius: req.body.serviceRadius,
 			services: req.body.services,
@@ -152,7 +225,6 @@ router.post("/create", isAuthenticated, async (req, res) => {
 		});
 
 		console.log("Pin created successfully:", newPin);
-
 		res.status(201).json(newPin);
 	} catch (error) {
 		console.error("Pin creation error:", {
@@ -160,11 +232,10 @@ router.post("/create", isAuthenticated, async (req, res) => {
 			stack: error.stack,
 			body: req.body,
 		});
-		res.status(500).json({ message: error.message, stack: error.stack });
+		res.status(500).json({ message: error.message });
 	}
 });
 
-// Update location pin
 router.put("/update", isAuthenticated, async (req, res) => {
 	try {
 		const user = await UserModel.findById(req.payload._id);
@@ -174,17 +245,28 @@ router.put("/update", isAuthenticated, async (req, res) => {
 				.json({ message: "Only pet sitters can update location pins" });
 		}
 
-		// Delete existing pin
+		if (!req.body.longitude || !req.body.latitude) {
+			return res.status(400).json({
+				message: "Invalid location data",
+				details: {
+					longitude: req.body.longitude,
+					latitude: req.body.latitude,
+				},
+			});
+		}
+
 		await LocationPin.findOneAndDelete({ user: req.payload._id });
 
-		// Create new pin with updated information
 		const updatedPin = await LocationPin.create({
 			user: req.payload._id,
 			title: req.body.title,
 			description: req.body.description,
 			location: {
 				type: "Point",
-				coordinates: [req.body.location.coordinates[0], req.body.location.coordinates[1]],
+				coordinates: [
+					parseFloat(req.body.longitude),
+					parseFloat(req.body.latitude),
+				],
 			},
 			serviceRadius: req.body.serviceRadius,
 			services: req.body.services,
@@ -199,7 +281,6 @@ router.put("/update", isAuthenticated, async (req, res) => {
 	}
 });
 
-// Delete location pin
 router.delete("/delete", isAuthenticated, async (req, res) => {
 	try {
 		const pin = await LocationPin.findOne({ user: req.payload._id });
@@ -209,87 +290,9 @@ router.delete("/delete", isAuthenticated, async (req, res) => {
 		}
 
 		await LocationPin.findByIdAndDelete(pin._id);
-
 		res.status(200).json({ message: "Location pin deleted successfully" });
 	} catch (error) {
 		res.status(500).json({ message: error.message });
-	}
-});
-
-router.get("/in-bounds", isAuthenticated, async (req, res) => {
-	try {
-		const { north, south, east, west } = req.query;
-
-		// Validate inputs
-		const coordinates = {
-			north: parseFloat(north),
-			south: parseFloat(south),
-			east: parseFloat(east),
-			west: parseFloat(west),
-		};
-
-		// Early validation
-		if (Object.values(coordinates).some(isNaN)) {
-			return res.status(400).json({
-				message: "Invalid coordinate values",
-				details: coordinates,
-			});
-		}
-
-		// Create polygon points in the correct order
-		const polygonCoordinates = [
-			[coordinates.west, coordinates.south],
-			[coordinates.east, coordinates.south],
-			[coordinates.east, coordinates.north],
-			[coordinates.west, coordinates.north],
-			[coordinates.west, coordinates.south],
-		];
-
-		// Validate coordinate ranges
-		if (
-			!polygonCoordinates.every(
-				([lng, lat]) => lng >= -180 && lng <= 180 && lat >= -90 && lat <= 90
-			)
-		) {
-			return res.status(400).json({
-				message: "Coordinates out of range",
-				details: polygonCoordinates,
-			});
-		}
-
-		const query = {
-			location: {
-				$geoWithin: {
-					$geometry: {
-						type: "Polygon",
-						coordinates: [polygonCoordinates],
-					},
-				},
-			},
-		};
-
-		const pins = await LocationPin.find(query).populate(
-			"user",
-			"username profilePicture sitter"
-		);
-
-		console.log("Query executed successfully:", {
-			bounds: coordinates,
-			pinsFound: pins.length,
-		});
-
-		return res.status(200).json(pins);
-	} catch (error) {
-		console.error("Error in in-bounds query:", {
-			error: error.message,
-			stack: error.stack,
-			query: req.query,
-		});
-
-		return res.status(500).json({
-			message: "Error fetching pins in bounds",
-			error: error.message,
-		});
 	}
 });
 
