@@ -219,47 +219,45 @@ router.delete("/delete", isAuthenticated, async (req, res) => {
 router.get("/in-bounds", isAuthenticated, async (req, res) => {
 	try {
 		const { north, south, east, west } = req.query;
+
 		if (!north || !south || !east || !west) {
 			return res.status(400).json({ message: "Missing bounds parameters" });
 		}
 
-		const nLat = parseFloat(north);
-		const sLat = parseFloat(south);
-		const eLng = parseFloat(east);
-		const wLng = parseFloat(west);
+		const coordinates = [
+			[parseFloat(west), parseFloat(south)],
+			[parseFloat(east), parseFloat(south)],
+			[parseFloat(east), parseFloat(north)],
+			[parseFloat(west), parseFloat(north)],
+			[parseFloat(west), parseFloat(south)],
+		];
 
-		// Validate coordinates
-		if (isNaN(nLat) || isNaN(sLat) || isNaN(eLng) || isNaN(wLng)) {
+		const isValid = coordinates.every(
+			([lng, lat]) =>
+				!isNaN(lng) &&
+				!isNaN(lat) &&
+				lng >= -180 &&
+				lng <= 180 &&
+				lat >= -90 &&
+				lat <= 90
+		);
+
+		if (!isValid) {
 			return res.status(400).json({ message: "Invalid coordinate values" });
 		}
-
-		const boundingBox = {
-			type: "Polygon",
-			coordinates: [
-				[
-					[wLng, sLat], // Southwest
-					[eLng, sLat], // Southeast
-					[eLng, nLat], // Northeast
-					[wLng, nLat], // Northwest
-					[wLng, sLat],
-				],
-			],
-		};
 
 		const pins = await LocationPin.find({
 			location: {
 				$geoWithin: {
-					$geometry: boundingBox,
+					$geometry: {
+						type: "Polygon",
+						coordinates: [coordinates],
+					},
 				},
 			},
 		}).populate("user", "username profilePicture sitter");
 
-		console.log("Bounds query successful:", {
-			bounds: { north, south, east, west },
-			pinsFound: pins.length,
-		});
-
-		res.status(200).json(pins);
+		return res.status(200).json(pins);
 	} catch (error) {
 		console.error("Error in in-bounds query:", {
 			error: error.message,
@@ -267,10 +265,9 @@ router.get("/in-bounds", isAuthenticated, async (req, res) => {
 			query: req.query,
 		});
 
-		res.status(500).json({
+		return res.status(500).json({
 			message: "Error fetching pins in bounds",
 			error: error.message,
-			details: process.env.NODE_ENV === "development" ? error.stack : undefined,
 		});
 	}
 });
