@@ -4,49 +4,64 @@ require("./db");
 const express = require("express");
 const cors = require("cors");
 const app = express();
-
-// For documentation with Swagger
 const swaggerUI = require("swagger-ui-express");
 const docs = require("./docs");
 
-// const allowedOrigins = [
-//   'https://pawkeeper.netlify.app',
-//   'https://pawkeeper-lhk-be.onrender.com',
-//   'http://localhost:5173',
-//   'http://localhost:5005'
-// ];
-const origin = process.env.ORIGIN || "http://localhost:5173";
+const ALLOWED_ORIGINS = [
+	"https://pawkeeper.netlify.app",
+	"http://localhost:5173",
+	"http://localhost:3000",
+];
 
 app.use(
 	cors({
-		origin: [
-			"https://pawkeeper.netlify.app",
-			"http://localhost:5173",
-			"http://localhost:3000",
-		],
+		origin: function (origin, callback) {
+			// Allow requests with no origin
+			if (!origin) return callback(null, true);
+
+			if (ALLOWED_ORIGINS.indexOf(origin) !== -1) {
+				callback(null, true);
+			} else {
+				callback(new Error("Not allowed by CORS"));
+			}
+		},
 		methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
 		credentials: true,
 		allowedHeaders: ["Content-Type", "Authorization", "Origin", "Accept"],
+		exposedHeaders: ["Content-Range", "X-Content-Range"],
 		maxAge: 86400,
 	})
 );
 
 app.use((req, res, next) => {
-	res.header("Access-Control-Allow-Origin", `${origin}`);
-	res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH");
-	res.header(
+	const origin = req.headers.origin;
+	if (ALLOWED_ORIGINS.includes(origin)) {
+		res.setHeader("Access-Control-Allow-Origin", origin);
+	}
+	res.setHeader(
+		"Access-Control-Allow-Methods",
+		"GET, POST, PUT, DELETE, PATCH, OPTIONS"
+	);
+	res.setHeader(
 		"Access-Control-Allow-Headers",
 		"Content-Type, Authorization, Origin, Accept"
 	);
-	res.header("Access-Control-Allow-Credentials", true);
+	res.setHeader("Access-Control-Allow-Credentials", "true");
+	res.setHeader("Access-Control-Max-Age", "86400");
+
+	if (req.method === "OPTIONS") {
+		return res.status(200).end();
+	}
+
 	next();
 });
 
+// Request logging middleware
 app.use((req, res, next) => {
 	console.log("Request:", {
 		method: req.method,
 		url: req.url,
-		origin: req.get("origin"),
+		origin: req.headers.origin,
 		headers: req.headers,
 	});
 	next();
@@ -54,14 +69,15 @@ app.use((req, res, next) => {
 
 require("./config")(app);
 
+// Routes
 app.get("/debug-env", (req, res) => {
 	res.json({
 		origin: process.env.ORIGIN,
 		port: process.env.PORT,
+		allowedOrigins: ALLOWED_ORIGINS,
 	});
 });
 
-// 👇 Start handling routes here
 const indexRoutes = require("./routes/index.routes");
 app.use("/api", indexRoutes);
 
@@ -86,10 +102,12 @@ app.use("/api/location-pins", locationPinRoutes);
 app.use("/pawkeeper", swaggerUI.serve, swaggerUI.setup(docs));
 
 app.use((err, req, res, next) => {
-	if (err.name === "CORSError") {
+	console.error("Global error handler:", err);
+	if (err.message === "Not allowed by CORS") {
 		res.status(403).json({
 			message: "CORS error",
 			error: err.message,
+			origin: req.headers.origin,
 		});
 	} else {
 		next(err);
@@ -98,4 +116,4 @@ app.use((err, req, res, next) => {
 
 require("./error-handling")(app);
 
-module.exports = { app };
+module.exports = { app, ALLOWED_ORIGINS };

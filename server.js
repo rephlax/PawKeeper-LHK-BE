@@ -1,5 +1,5 @@
 console.log("Starting server...");
-const { app } = require("./app");
+const { app, ALLOWED_ORIGINS } = require("./app");
 const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
@@ -10,6 +10,7 @@ const Message = require("./models/Message.model");
 const rateLimit = require("express-rate-limit");
 const LocationPin = require("./models/LocationPin.model");
 const locationSocketHandlers = require("./socket-handlers/locationHandlers");
+
 require("dotenv").config();
 const helmet = require("helmet");
 const PORT = process.env.PORT || 5005;
@@ -24,14 +25,17 @@ const allowedOrigins = [
 
 const io = new Server(httpServer, {
 	cors: {
-		origin: [
-			"https://pawkeeper.netlify.app",
-			"http://localhost:5173",
-			"http://localhost:3000",
-		],
+		origin: function (origin, callback) {
+			if (!origin || ALLOWED_ORIGINS.indexOf(origin) !== -1) {
+				callback(null, true);
+			} else {
+				callback(new Error("Not allowed by CORS"));
+			}
+		},
 		credentials: true,
 		methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
 		allowedHeaders: ["Content-Type", "Authorization", "Origin", "Accept"],
+		exposedHeaders: ["Content-Range", "X-Content-Range"],
 	},
 	pingTimeout: 60000,
 	pingInterval: 25000,
