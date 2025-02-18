@@ -4,7 +4,7 @@ const isAuthenticated = require("../middlewares/auth.middleware");
 const ReviewModel = require("../models/Review.model");
 const UserModel = require("../models/User.model.js");
 
-router.get("/reviews/:userId", async (req, res) => {
+router.get("/:userId", async (req, res) => {
 	const { userId } = req.params;
 	try {
 		const allReviews = await ReviewModel.find({ reviewedUser: userId })
