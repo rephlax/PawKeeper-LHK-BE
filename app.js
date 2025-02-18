@@ -131,6 +131,15 @@ app.use("/api/location-pins", locationPinRoutes);
 app.use("/pawkeeper", swaggerUI.serve, swaggerUI.setup(docs));
 
 // Error handling
+
+app.use((req, res) => {
+	res.status(404).json({
+		message: "Route not found",
+		path: req.path,
+		method: req.method,
+	});
+});
+
 app.use((err, req, res, next) => {
 	console.error("Global error handler:", {
 		error: err.message,
