@@ -13,52 +13,28 @@ const ALLOWED_ORIGINS = [
 	"http://localhost:3000",
 ];
 
+// Single CORS configuration
 app.use(
 	cors({
 		origin: function (origin, callback) {
-			// Allow requests with no origin
-			if (!origin) return callback(null, true);
-
-			if (ALLOWED_ORIGINS.indexOf(origin) !== -1) {
+			if (!origin || ALLOWED_ORIGINS.includes(origin)) {
 				callback(null, true);
 			} else {
+				console.log("Blocked by CORS:", origin);
 				callback(new Error("Not allowed by CORS"));
 			}
 		},
-		methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
 		credentials: true,
+		methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
 		allowedHeaders: ["Content-Type", "Authorization", "Origin", "Accept"],
 		exposedHeaders: ["Content-Range", "X-Content-Range"],
 		maxAge: 86400,
 	})
 );
 
+// Request logging middleware with timestamp
 app.use((req, res, next) => {
-	const origin = req.headers.origin;
-	if (ALLOWED_ORIGINS.includes(origin)) {
-		res.setHeader("Access-Control-Allow-Origin", origin);
-	}
-	res.setHeader(
-		"Access-Control-Allow-Methods",
-		"GET, POST, PUT, DELETE, PATCH, OPTIONS"
-	);
-	res.setHeader(
-		"Access-Control-Allow-Headers",
-		"Content-Type, Authorization, Origin, Accept"
-	);
-	res.setHeader("Access-Control-Allow-Credentials", "true");
-	res.setHeader("Access-Control-Max-Age", "86400");
-
-	if (req.method === "OPTIONS") {
-		return res.status(200).end();
-	}
-
-	next();
-});
-
-// Request logging middleware
-app.use((req, res, next) => {
-	console.log("Request:", {
+	console.log(`${new Date().toISOString()} - Request:`, {
 		method: req.method,
 		url: req.url,
 		origin: req.headers.origin,
@@ -69,15 +45,26 @@ app.use((req, res, next) => {
 
 require("./config")(app);
 
-// Routes
+// Health check endpoint for Render
+app.get("/health", (req, res) => {
+	res.status(200).json({
+		status: "OK",
+		timestamp: new Date().toISOString(),
+		environment: process.env.NODE_ENV,
+	});
+});
+
+// Debug endpoint
 app.get("/debug-env", (req, res) => {
 	res.json({
 		origin: process.env.ORIGIN,
 		port: process.env.PORT,
 		allowedOrigins: ALLOWED_ORIGINS,
+		nodeEnv: process.env.NODE_ENV,
 	});
 });
 
+// Routes
 const indexRoutes = require("./routes/index.routes");
 app.use("/api", indexRoutes);
 
@@ -99,10 +86,19 @@ app.use("/rooms", roomRoutes);
 const locationPinRoutes = require("./routes/location-pin.routes");
 app.use("/api/location-pins", locationPinRoutes);
 
+// Swagger documentation
 app.use("/pawkeeper", swaggerUI.serve, swaggerUI.setup(docs));
 
+// Enhanced error handling
 app.use((err, req, res, next) => {
-	console.error("Global error handler:", err);
+	console.error("Global error handler:", {
+		error: err.message,
+		stack: err.stack,
+		origin: req.headers.origin,
+		path: req.path,
+		method: req.method,
+	});
+
 	if (err.message === "Not allowed by CORS") {
 		res.status(403).json({
 			message: "CORS error",
