@@ -3,6 +3,7 @@ require("./db");
 
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
 const app = express();
 const swaggerUI = require("swagger-ui-express");
 const docs = require("./docs");
@@ -12,6 +13,36 @@ const ALLOWED_ORIGINS = [
 	"http://localhost:5173",
 	"http://localhost:3000",
 ];
+
+// Trust proxy settings for Render
+app.set("trust proxy", true);
+
+// Helmet configuration
+app.use(
+	helmet({
+		contentSecurityPolicy: {
+			directives: {
+				defaultSrc: ["'self'"],
+				scriptSrc: [
+					"'self'",
+					"'unsafe-inline'",
+					"api.mapbox.com",
+					"events.mapbox.com",
+				],
+				styleSrc: ["'self'", "'unsafe-inline'", "api.mapbox.com"],
+				imgSrc: ["'self'", "data:", "blob:", "*.mapbox.com", "api.mapbox.com"],
+				connectSrc: [
+					"'self'",
+					"api.mapbox.com",
+					"events.mapbox.com",
+					"https://*.tiles.mapbox.com",
+				],
+				workerSrc: ["'self'", "blob:"],
+				childSrc: ["'self'", "blob:"],
+			},
+		},
+	})
+);
 
 // Single CORS configuration
 app.use(
@@ -34,16 +65,26 @@ app.use(
 
 // Request logging middleware with timestamp
 app.use((req, res, next) => {
-	console.log(`${new Date().toISOString()} - Request:`, {
+	const timestamp = new Date().toISOString();
+	console.log(`[${timestamp}] Request:`, {
 		method: req.method,
 		url: req.url,
 		origin: req.headers.origin,
-		headers: req.headers,
+		ip: req.headers["cf-connecting-ip"] || req.ip,
+		userAgent: req.headers["user-agent"],
 	});
 	next();
 });
 
 require("./config")(app);
+
+app.get("/", (req, res) => {
+	res.status(200).json({
+		message: "PawKeeper API is running",
+		version: "1.0.0",
+		timestamp: new Date().toISOString(),
+	});
+});
 
 // Health check endpoint for Render
 app.get("/health", (req, res) => {
@@ -89,7 +130,7 @@ app.use("/api/location-pins", locationPinRoutes);
 // Swagger documentation
 app.use("/pawkeeper", swaggerUI.serve, swaggerUI.setup(docs));
 
-// Enhanced error handling
+// Error handling
 app.use((err, req, res, next) => {
 	console.error("Global error handler:", {
 		error: err.message,

@@ -77,46 +77,42 @@ router.post("/:userId", isAuthenticated, async (req, res) => {
 	}
 });
 
-router.patch(
-	"/reviews/:userId/:reviewId",
-	isAuthenticated,
-	async (req, res) => {
-		try {
-			const { userId, reviewId } = req.params;
+router.patch("/:userId/:reviewId", isAuthenticated, async (req, res) => {
+	try {
+		const { userId, reviewId } = req.params;
 
-			const review = await ReviewModel.findById(reviewId);
-			if (!review) {
-				return res.status(404).json({ message: "Review not found" });
-			}
-
-			if (review.creator.toString() !== req.payload._id) {
-				return res
-					.status(403)
-					.json({ message: "Not authorized to edit this review" });
-			}
-
-			const updatedReview = await ReviewModel.findByIdAndUpdate(
-				reviewId,
-				{
-					title: req.body.title,
-					description: req.body.description,
-					rating: req.body.rating,
-				},
-				{ new: true }
-			).populate("creator", "username profilePicture");
-
-			res.status(200).json({
-				message: "Review updated successfully",
-				review: updatedReview,
-			});
-		} catch (error) {
-			console.error("Review update error:", error);
-			res.status(500).json({
-				message: "Failed to update review",
-				error: error.message,
-			});
+		const review = await ReviewModel.findById(reviewId);
+		if (!review) {
+			return res.status(404).json({ message: "Review not found" });
 		}
+
+		if (review.creator.toString() !== req.payload._id) {
+			return res
+				.status(403)
+				.json({ message: "Not authorized to edit this review" });
+		}
+
+		const updatedReview = await ReviewModel.findByIdAndUpdate(
+			reviewId,
+			{
+				title: req.body.title,
+				description: req.body.description,
+				rating: req.body.rating,
+			},
+			{ new: true }
+		).populate("creator", "username profilePicture");
+
+		res.status(200).json({
+			message: "Review updated successfully",
+			review: updatedReview,
+		});
+	} catch (error) {
+		console.error("Review update error:", error);
+		res.status(500).json({
+			message: "Failed to update review",
+			error: error.message,
+		});
 	}
-);
+});
 
 module.exports = router;

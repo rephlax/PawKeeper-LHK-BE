@@ -1,6 +1,5 @@
 console.log("Starting server...");
 const { app, ALLOWED_ORIGINS } = require("./app");
-const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
@@ -10,65 +9,34 @@ const Message = require("./models/Message.model");
 const rateLimit = require("express-rate-limit");
 const LocationPin = require("./models/LocationPin.model");
 const locationSocketHandlers = require("./socket-handlers/locationHandlers");
+const express = require("express");
 
 require("dotenv").config();
-const helmet = require("helmet");
 const PORT = process.env.PORT || 5005;
 const httpServer = createServer(app);
 const onlineUsers = new Map();
 
-const allowedOrigins = [
-	"https://pawkeeper.netlify.app",
-	"http://localhost:5173",
-	"http://localhost:3000",
-];
-
 const io = new Server(httpServer, {
 	cors: {
 		origin: function (origin, callback) {
-			if (!origin || ALLOWED_ORIGINS.indexOf(origin) !== -1) {
+			if (!origin || ALLOWED_ORIGINS.includes(origin)) {
 				callback(null, true);
 			} else {
+				console.log("Blocked by CORS:", origin);
 				callback(new Error("Not allowed by CORS"));
 			}
 		},
 		credentials: true,
 		methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
 		allowedHeaders: ["Content-Type", "Authorization", "Origin", "Accept"],
-		exposedHeaders: ["Content-Range", "X-Content-Range"],
 	},
 	pingTimeout: 60000,
 	pingInterval: 25000,
+	transports: ["websocket", "polling"],
 });
 
-app.use(
-	helmet({
-		contentSecurityPolicy: {
-			directives: {
-				defaultSrc: ["'self'"],
-				scriptSrc: [
-					"'self'",
-					"'unsafe-inline'",
-					"api.mapbox.com",
-					"events.mapbox.com",
-				],
-				styleSrc: ["'self'", "'unsafe-inline'", "api.mapbox.com"],
-				imgSrc: ["'self'", "data:", "blob:", "*.mapbox.com", "api.mapbox.com"],
-				connectSrc: [
-					"'self'",
-					"api.mapbox.com",
-					"events.mapbox.com",
-					"https://*.tiles.mapbox.com",
-				],
-				workerSrc: ["'self'", "blob:"],
-				childSrc: ["'self'", "blob:"],
-			},
-		},
-	})
-);
-
 const globalRateLimiter = rateLimit({
-	windowMs: 15 * 60 * 1000, // 15 minutes
+	windowMs: 15 * 60 * 1000,
 	max: 100,
 	standardHeaders: true,
 	legacyHeaders: false,
@@ -76,13 +44,12 @@ const globalRateLimiter = rateLimit({
 });
 
 const locationRateLimiter = rateLimit({
-	windowMs: 15 * 60 * 1000, // 15 minutes
+	windowMs: 15 * 60 * 1000,
 	max: 50,
 	message: "Too many location requests, please try again later",
 });
 
 app.use(globalRateLimiter);
-
 app.use(express.json());
 
 // Authentication middleware
