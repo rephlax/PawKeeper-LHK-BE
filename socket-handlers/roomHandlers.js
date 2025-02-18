@@ -7,7 +7,7 @@ const roomHandlers = (io, socket) => {
 		try {
 			const { name, type, participants } = roomData;
 
-			// Default name to be given for the private chat
+			// Default name to be given for the private chat (NOT USED CURRENTLY)
 			const defaultName =
 				participants.length === 1
 					? `Chat with ${socket.user.username}`
@@ -18,7 +18,7 @@ const roomHandlers = (io, socket) => {
 			const roomType = validTypes.includes(type) ? type : "direct";
 
 			const newRoom = await ChatRoom.create({
-				name: name || defaultName,
+				name,
 				type: roomType,
 				participants: [socket.user._id, ...participants],
 				creator: socket.user._id,
