@@ -281,17 +281,19 @@ router.put("/update", isAuthenticated, async (req, res) => {
 	}
 });
 
-router.delete("/delete", isAuthenticated, async (req, res) => {
+router.delete("/:pinId", isAuthenticated, async (req, res) => {
 	try {
-		const pin = await LocationPin.findOne({ user: req.payload._id });
+		const pin = await LocationPin.findOneAndDelete({ _id: req.params.pinId });
 
 		if (!pin) {
-			return res.status(404).json({ message: "No location pin found" });
+			return res.status(404).json({ message: "Pin not found" });
 		}
 
-		await LocationPin.findByIdAndDelete(pin._id);
-		res.status(200).json({ message: "Location pin deleted successfully" });
+		req.app.io.emit("pin_deleted", pin._id);
+
+		res.status(200).json({ message: "Pin deleted successfully" });
 	} catch (error) {
+		console.error("Error deleting pin:", error);
 		res.status(500).json({ message: error.message });
 	}
 });

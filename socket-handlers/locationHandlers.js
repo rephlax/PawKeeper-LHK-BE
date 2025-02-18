@@ -61,6 +61,17 @@ const locationSocketHandlers = (io, socket) => {
 		}
 	});
 
+	socket.on("delete_pin", async (pinId) => {
+		try {
+			const pin = await LocationPin.findOneAndDelete({ _id: pinId });
+			if (pin) {
+				io.emit("pin_deleted", pinId);
+			}
+		} catch (error) {
+			console.error("Error deleting pin:", error);
+		}
+	});
+
 	socket.on("search_nearby_sitters", async (searchParams, callback) => {
 		try {
 			const nearbyPins = await LocationPin.aggregate([
