@@ -1,12 +1,25 @@
+const mongoose = require("mongoose");
 const ChatRoom = require("../models/Room.model");
 
 const roomHandlers = (io, socket) => {
 	// Create a new room
-	socket.on("create_room", async ({ name, type, participants }) => {
+	socket.on("create_room", async (roomData) => {
 		try {
+			const { name, type, participants } = roomData;
+
+			// Default name to be given for the private chat
+			const defaultName =
+				participants.length === 1
+					? `Chat with ${socket.user.username}`
+					: `Group Chat (${participants.length + 1} members)`;
+
+			// Validate type
+			const validTypes = ["direct", "group"];
+			const roomType = validTypes.includes(type) ? type : "direct";
+
 			const newRoom = await ChatRoom.create({
-				name,
-				type,
+				name: name || defaultName,
+				type: roomType,
 				participants: [socket.user._id, ...participants],
 				creator: socket.user._id,
 				isActive: true,
@@ -20,7 +33,7 @@ const roomHandlers = (io, socket) => {
 			participants.forEach((participantId) => {
 				io.to(participantId).emit("room_invitation", {
 					roomId: newRoom._id,
-					roomName: name,
+					roomName: newRoom.name,
 					invitedBy: socket.user.username,
 					invitedById: socket.user._id,
 				});
@@ -30,7 +43,10 @@ const roomHandlers = (io, socket) => {
 			socket.emit("room_created", await newRoom.populate("participants"));
 		} catch (error) {
 			console.error("Room creation error:", error);
-			socket.emit("error", "Failed to create room");
+			socket.emit("error", {
+				message: "Failed to create room",
+				details: error.message,
+			});
 		}
 	});
 
