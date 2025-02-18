@@ -3,7 +3,6 @@ const { Schema, model } = require("mongoose");
 const chatRoomSchema = new Schema({
 	name: {
 		type: String,
-		required: true,
 		default: function () {
 			// If no name is provided, generate a default name
 			const participants = this.participants || [];
