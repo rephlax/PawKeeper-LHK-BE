@@ -85,8 +85,12 @@ const locationSocketHandlers = (io, socket) => {
 	});
 
 	socket.on("center_map", (location) => {
+		// not broadcasting anymore
 		if (isValidLocation(location)) {
-			socket.broadcast.emit("center_map", location);
+			socket.emit("center_map", {
+				...location,
+				userId: socket.user._id,
+			});
 		}
 	});
 
