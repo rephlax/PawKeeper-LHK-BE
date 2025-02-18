@@ -96,7 +96,7 @@ const locationSocketHandlers = (io, socket) => {
 
 	socket.on("toggle_pin_creation", (data) => {
 		if (socket.user.sitter) {
-			socket.broadcast.emit("toggle_pin_creation", data);
+			socket.emit("toggle_pin_creation", data);
 		}
 	});
 
@@ -137,24 +137,41 @@ const locationSocketHandlers = (io, socket) => {
 		}
 	});
 
-	socket.on("pin_created", async () => {
+	socket.on('pin_created', async () => {
 		try {
-			const pin = await LocationPin.findOne({ user: socket.user._id }).populate(
-				"user",
-				"username profilePicture"
-			);
-
-			if (pin) {
-				io.emit("pin_created", {
-					pin,
-					userId: socket.user._id,
-				});
-			}
+		  const pin = await LocationPin.findOne({ user: socket.user._id }).populate(
+			"user",
+			"username profilePicture"
+		  );
+	  
+		  if (pin) {
+			socket.emit('user_pin_created', {
+			  pin,
+			  userId: socket.user._id,
+			});
+		  }
 		} catch (error) {
-			console.error("Error broadcasting pin creation:", error);
+		  console.error("Error handling pin creation:", error);
 		}
-	});
-};
+	  });
+
+	  socket.on('pin_updated', async () => {
+		try {
+		  const pin = await LocationPin.findOne({ user: socket.user._id }).populate(
+			"user",
+			"username profilePicture"
+		  );
+	  
+		  if (pin) {
+			socket.emit('user_pin_updated', {
+			  pin,
+			  userId: socket.user._id,
+			});
+		  }
+		} catch (error) {
+		  console.error("Error handling pin update:", error);
+		}
+	  });
 
 // Utility function to validate location
 function isValidLocation(locationData) {
