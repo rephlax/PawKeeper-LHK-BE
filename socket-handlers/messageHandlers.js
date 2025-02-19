@@ -1,5 +1,6 @@
 const Message = require('../models/Message.model');
 const ChatRoom = require('../models/Room.model');
+const { translateMessage } = require('./services/translationService');
 
 const messageHandlers = (io, socket) => {
     socket.on('send_message', async (messageData) => {
@@ -37,6 +38,25 @@ const messageHandlers = (io, socket) => {
             socket.emit('error', 'Failed to send message');
         }
     });
-};
+    // New: Handle translation requests
+    socket.on('request_translation', async ({ messageId, targetLanguage }) => {
+        try {
+        const message = await Message.findById(messageId);
+        if (!message) {
+            return socket.emit('error', 'Message not found');
+        }
+
+        const translatedText = await translateMessage(message.content, targetLanguage);
+        if (translatedText) {
+            socket.emit('receive_translation', { messageId, translatedText });
+        } else {
+            socket.emit('receive_translation_failure', { messageId });
+        }
+        } catch (error) {
+        console.error('Error handling translation request:', error);
+        socket.emit('error', 'Translation failed');
+        }
+    });
+    };
 
 module.exports = messageHandlers;
