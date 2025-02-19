@@ -115,7 +115,6 @@ const locationSocketHandlers = (io, socket) => {
 		try {
 			socket.viewport = viewport;
 
-			// Validation for viewport and bounds
 			if (!viewport?.zoom || !viewport?.bounds) {
 				console.log("Invalid viewport data:", viewport);
 				return;
@@ -124,22 +123,45 @@ const locationSocketHandlers = (io, socket) => {
 			if (viewport.zoom >= 9) {
 				const bounds = viewport.bounds;
 
-				// Validate all bounds values exist
 				if (!bounds.north || !bounds.south || !bounds.east || !bounds.west) {
 					console.log("Invalid bounds data:", bounds);
 					return;
 				}
 
-				const nearbyPins = await LocationPin.find({
-					"location.coordinates": {
-						$geoWithin: {
-							$box: [
-								[bounds.west, bounds.south],
-								[bounds.east, bounds.north],
-							],
+				// Add distance filtering
+				const nearbyPins = await LocationPin.aggregate([
+					{
+						$geoNear: {
+							near: {
+								type: "Point",
+								coordinates: [viewport.longitude, viewport.latitude],
+							},
+							distanceField: "distance",
+							maxDistance: 50000, // 50km in meters
+							spherical: true,
 						},
 					},
-				}).populate("user", "username profilePicture sitter");
+					{
+						$match: {
+							"location.coordinates": {
+								$geoWithin: {
+									$box: [
+										[bounds.west, bounds.south],
+										[bounds.east, bounds.north],
+									],
+								},
+							},
+						},
+					},
+					{
+						$lookup: {
+							from: "users",
+							localField: "user",
+							foreignField: "_id",
+							as: "userDetails",
+						},
+					},
+				]);
 
 				socket.emit("nearby_pins", nearbyPins);
 			}
