@@ -7,6 +7,7 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
+    "@google-cloud/translate": "^8.5.0",
     "@mapbox/mapbox-gl-geocoder": "^5.0.3",
     "@react-google-maps/api": "^2.20.6",
     "axios": "^1.7.9",
