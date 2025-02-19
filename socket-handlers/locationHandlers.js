@@ -1,107 +1,223 @@
-const LocationPin = require('../models/LocationPin.model');
+const LocationPin = require("../models/LocationPin.model");
 
 const locationSocketHandlers = (io, socket) => {
-  if (!socket.user) {
-    socket.disconnect(true);
-    return;
-  }
+	if (!socket.user) {
+		socket.disconnect(true);
+		return;
+	}
 
-  socket.on('share_location', async (locationData, callback) => {
-    try {
-      if (!isValidLocation(locationData)) {
-        return callback({ error: 'Invalid location data' });
-      }
+	socket.on("share_location", async (locationData) => {
+		try {
+			console.log("Received location data:", {
+				locationData,
+				user: socket.user,
+				socketId: socket.id,
+			});
 
-      if (!socket.user.sitter) {
-        return callback({ error: 'Not authorized' });
-      }
+			if (!isValidLocation(locationData)) {
+				console.error("Invalid location data:", locationData);
+				socket.emit("location_error", { error: "Invalid location data" });
+				return;
+			}
 
-      const updatedPin = await LocationPin.findOneAndUpdate(
-        { user: socket.user._id },
-        {
-          location: {
-            type: 'Point',
-            coordinates: [locationData.lng, locationData.lat] // MongoDB expects [longitude, latitude]
-          }
-        },
-        { upsert: true, new: true }
-      );
+			if (!socket.user) {
+				console.error("No user in socket");
+				socket.emit("location_error", { error: "User not authenticated" });
+				return;
+			}
 
-      const nearbyUsers = await findNearbyUsers(locationData);
-      nearbyUsers.forEach(user => {
-        io.to(user.socketId).emit('nearby_sitter_update', updatedPin);
-      });
+			if (!socket.user.sitter) {
+				console.error("User not a sitter:", socket.user);
+				socket.emit("location_error", {
+					error: "Not authorized - user must be a sitter",
+				});
+				return;
+			}
 
-      callback({ success: true, pin: updatedPin });
-    } catch (error) {
-      console.error('Location update error:', error);
-      callback({ error: 'Location update failed' });
-    }
-  });
+			const updatedPin = await LocationPin.findOneAndUpdate(
+				{ user: socket.user._id },
+				{
+					location: {
+						type: "Point",
+						coordinates: [locationData.lng, locationData.lat],
+					},
+				},
+				{ upsert: true, new: true }
+			);
 
-  socket.on('search_nearby_sitters', async (searchParams, callback) => {
-    try {
-      const nearbyPins = await LocationPin.aggregate([
-        {
-          $geoNear: {
-            near: {
-              type: 'Point',
-              coordinates: [searchParams.lng, searchParams.lat]
-            },
-            distanceField: 'distance',
-            maxDistance: searchParams.radius * 1000,
-            spherical: true
-          }
-        }
-      ]);
+			console.log("Pin updated:", updatedPin);
+			socket.emit("location_updated", { success: true, pin: updatedPin });
+		} catch (error) {
+			console.error("Location update error:", {
+				error: error.message,
+				stack: error.stack,
+				locationData,
+				user: socket.user,
+			});
+			socket.emit("location_error", {
+				error: "Location update failed",
+				details: error.message,
+			});
+		}
+	});
 
-      callback({ sitters: nearbyPins });
-    } catch (error) {
-      console.error('Search failed:', error);
-      callback({ error: 'Search failed' });
-    }
-  });
+	socket.on("delete_pin", async (pinId) => {
+		try {
+			const pin = await LocationPin.findOneAndDelete({ _id: pinId });
+			if (pin) {
+				io.emit("pin_deleted", pinId);
+			}
+		} catch (error) {
+			console.error("Error deleting pin:", error);
+		}
+	});
 
-  socket.on('center_map', (location) => {
-    if (isValidLocation(location)) {
-      socket.broadcast.emit('center_map', location);
-    }
-  });
+	socket.on("search_nearby_sitters", async (searchParams, callback) => {
+		try {
+			const nearbyPins = await LocationPin.aggregate([
+				{
+					$geoNear: {
+						near: {
+							type: "Point",
+							coordinates: [searchParams.lng, searchParams.lat],
+						},
+						distanceField: "distance",
+						maxDistance: searchParams.radius * 1000,
+						spherical: true,
+					},
+				},
+			]);
 
-  socket.on('toggle_pin_creation', (data) => {
-    if (socket.user.sitter) {
-      socket.broadcast.emit('toggle_pin_creation', data);
-    }
-  });
+			callback({ sitters: nearbyPins });
+		} catch (error) {
+			console.error("Search failed:", error);
+			callback({ error: "Search failed" });
+		}
+	});
 
-  socket.on('pin_created', async () => {
-    try {
-      const pin = await LocationPin.findOne({ user: socket.user._id })
-        .populate('user', 'username profilePicture');
-        
-      if (pin) {
-        io.emit('pin_created', {
-          pin,
-          userId: socket.user._id
-        });
-      }
-    } catch (error) {
-      console.error('Error broadcasting pin creation:', error);
-    }
-  });
+	socket.on("center_map", (location) => {
+		// not broadcasting anymore
+		if (isValidLocation(location)) {
+			socket.emit("center_map", {
+				...location,
+				userId: socket.user._id,
+			});
+		}
+	});
+
+	socket.on("toggle_pin_creation", (data) => {
+		if (socket.user.sitter) {
+			socket.emit("toggle_pin_creation", data);
+		}
+	});
+
+	socket.on("viewport_update", async (viewport) => {
+		try {
+			socket.viewport = viewport;
+
+			if (!viewport?.zoom || !viewport?.bounds) {
+				console.log("Invalid viewport data:", viewport);
+				return;
+			}
+
+			if (viewport.zoom >= 9) {
+				const bounds = viewport.bounds;
+
+				if (!bounds.north || !bounds.south || !bounds.east || !bounds.west) {
+					console.log("Invalid bounds data:", bounds);
+					return;
+				}
+
+				// Add distance filtering
+				const nearbyPins = await LocationPin.aggregate([
+					{
+						$geoNear: {
+							near: {
+								type: "Point",
+								coordinates: [viewport.longitude, viewport.latitude],
+							},
+							distanceField: "distance",
+							maxDistance: 50000, // 50km in meters
+							spherical: true,
+						},
+					},
+					{
+						$match: {
+							"location.coordinates": {
+								$geoWithin: {
+									$box: [
+										[bounds.west, bounds.south],
+										[bounds.east, bounds.north],
+									],
+								},
+							},
+						},
+					},
+					{
+						$lookup: {
+							from: "users",
+							localField: "user",
+							foreignField: "_id",
+							as: "userDetails",
+						},
+					},
+				]);
+
+				socket.emit("nearby_pins", nearbyPins);
+			}
+		} catch (error) {
+			console.error("Viewport update error:", error);
+		}
+	});
+
+	socket.on("pin_created", async () => {
+		try {
+			const pin = await LocationPin.findOne({ user: socket.user._id }).populate(
+				"user",
+				"username profilePicture"
+			);
+
+			if (pin) {
+				socket.emit("user_pin_created", {
+					pin,
+					userId: socket.user._id,
+				});
+			}
+		} catch (error) {
+			console.error("Error handling pin creation:", error);
+		}
+	});
+
+	socket.on("pin_updated", async () => {
+		try {
+			const pin = await LocationPin.findOne({ user: socket.user._id }).populate(
+				"user",
+				"username profilePicture"
+			);
+
+			if (pin) {
+				socket.emit("user_pin_updated", {
+					pin,
+					userId: socket.user._id,
+				});
+			}
+		} catch (error) {
+			console.error("Error handling pin update:", error);
+		}
+	});
 };
 
 // Utility function to validate location
 function isValidLocation(locationData) {
-  return (
-    locationData &&
-    typeof locationData.lat === 'number' &&
-    typeof locationData.lng === 'number' &&
-    locationData.lat >= -90 &&
-    locationData.lat <= 90 &&
-    locationData.lng >= -180 &&
-    locationData.lng <= 180
-  );
+	return (
+		locationData &&
+		typeof locationData.lat === "number" &&
+		typeof locationData.lng === "number" &&
+		locationData.lat >= -90 &&
+		locationData.lat <= 90 &&
+		locationData.lng >= -180 &&
+		locationData.lng <= 180
+	);
 }
 
 module.exports = locationSocketHandlers;

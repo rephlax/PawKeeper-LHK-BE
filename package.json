@@ -7,6 +7,8 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
+    "@google-cloud/translate": "^8.5.0",
+    "@mapbox/mapbox-gl-geocoder": "^5.0.3",
     "@react-google-maps/api": "^2.20.6",
     "axios": "^1.7.9",
     "bcryptjs": "^2.4.3",
@@ -17,9 +19,13 @@
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
+    "lowdb": "^7.0.1",
+    "mapbox-gl": "^3.10.0",
     "mongoose": "^8.9.5",
     "morgan": "^1.10.0",
-    "socket.io": "^4.8.1"
+    "nanoid": "^5.0.9",
+    "socket.io": "^4.8.1",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"
