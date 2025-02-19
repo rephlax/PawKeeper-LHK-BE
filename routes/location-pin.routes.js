@@ -29,69 +29,61 @@ router.get("/all-pins", isAuthenticated, async (req, res) => {
 
 router.get("/in-bounds", isAuthenticated, async (req, res) => {
 	try {
-		const { north, south, east, west } = req.query;
+		const { north, south, east, west, longitude, latitude } = req.query;
 
-		const coordinates = {
-			north: parseFloat(north),
-			south: parseFloat(south),
-			east: parseFloat(east),
-			west: parseFloat(west),
-		};
-
-		if (Object.values(coordinates).some(isNaN)) {
+		// Validate center coordinates
+		if (!longitude || !latitude) {
 			return res.status(400).json({
-				message: "Invalid coordinate values",
-				details: coordinates,
+				message: "Missing center coordinates",
 			});
 		}
 
-		const polygonCoordinates = [
-			[coordinates.west, coordinates.south],
-			[coordinates.east, coordinates.south],
-			[coordinates.east, coordinates.north],
-			[coordinates.west, coordinates.north],
-			[coordinates.west, coordinates.south],
-		];
+		const center = [parseFloat(longitude), parseFloat(latitude)];
 
-		if (
-			!polygonCoordinates.every(
-				([lng, lat]) => lng >= -180 && lng <= 180 && lat >= -90 && lat <= 90
-			)
-		) {
-			return res.status(400).json({
-				message: "Coordinates out of range",
-				details: polygonCoordinates,
-			});
-		}
-
-		const query = {
-			location: {
-				$geoWithin: {
-					$geometry: {
-						type: "Polygon",
-						coordinates: [polygonCoordinates],
+		// Use $geoNear for radius filtering to only see pins in your area
+		const pins = await LocationPin.aggregate([
+			{
+				$geoNear: {
+					near: {
+						type: "Point",
+						coordinates: center,
+					},
+					distanceField: "distance",
+					maxDistance: 50000, // 50km in meters
+					spherical: true,
+				},
+			},
+			{
+				$match: {
+					location: {
+						$geoWithin: {
+							$box: [
+								[parseFloat(west), parseFloat(south)],
+								[parseFloat(east), parseFloat(north)],
+							],
+						},
 					},
 				},
 			},
-		};
-
-		const pins = await LocationPin.find(query).populate(
-			"user",
-			"username profilePicture sitter"
-		);
+			{
+				$lookup: {
+					from: "users",
+					localField: "user",
+					foreignField: "_id",
+					as: "userDetails",
+				},
+			},
+		]);
 
 		console.log("Query executed successfully:", {
-			bounds: coordinates,
+			bounds: { north, south, east, west },
+			center,
 			pinsFound: pins.length,
 		});
 
 		return res.status(200).json(pins);
 	} catch (error) {
-		console.error("Error in in-bounds query:", {
-			error: error.message,
-			stack: error.stack,
-			query: req.query,
-		});
+		console.error("Error in in-bounds query:", error);
 		return res.status(500).json({
 			message: "Error fetching pins in bounds",
 			error: error.message,
