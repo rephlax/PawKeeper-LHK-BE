@@ -6,12 +6,36 @@ const roomHandlers = (io, socket) => {
 	console.log("Room handlers registered for socket:", socket.id);
 
 	// Create a new room
-	socket.on("create_room", async (roomData) => {
+	socket.on("create_room", async (roomData, callback) => {
 		try {
 			const { name, type, participants } = roomData;
 
+			// For direct chats, check if a room with the same participants already exists
+			if (type === "direct" && participants.length === 1) {
+				const existingRoom = await ChatRoom.findOne({
+					type: "direct",
+					participants: {
+						$all: [socket.user._id, ...participants],
+						$size: 2,
+					},
+				})
+					.populate("participants", "username profilePicture")
+					.populate("lastMessage");
+
+				if (existingRoom) {
+					console.log("Found existing direct room, reusing:", existingRoom._id);
+					socket.join(existingRoom._id.toString());
+					socket.emit("room_created", existingRoom);
+
+					if (callback && typeof callback === "function") {
+						callback({ roomId: existingRoom._id });
+					}
+					return;
+				}
+			}
+
 			const newRoom = await ChatRoom.create({
-				name,
+				name: name || "Direct Chat",
 				type: type || "direct",
 				participants: [socket.user._id, ...participants],
 				creator: socket.user._id,
@@ -19,14 +43,16 @@ const roomHandlers = (io, socket) => {
 				lastActive: new Date(),
 			});
 
-			const populatedRoom = await newRoom.populate("participants");
+			const populatedRoom = await newRoom.populate(
+				"participants",
+				"username profilePicture"
+			);
 
 			// Join the room yourself
 			socket.join(newRoom._id.toString());
 
 			// Notify and join other participants
 			participants.forEach((participantId) => {
-				io.to(participantId.toString()).join(newRoom._id.toString());
 				io.to(participantId.toString()).emit("room_joined", populatedRoom);
 			});
 
@@ -37,12 +63,20 @@ const roomHandlers = (io, socket) => {
 			[...participants, socket.user._id].forEach((userId) => {
 				io.to(userId.toString()).emit("get_rooms");
 			});
+
+			if (callback && typeof callback === "function") {
+				callback({ roomId: newRoom._id });
+			}
 		} catch (error) {
 			console.error("Room creation error:", error);
 			socket.emit("error", {
 				message: "Failed to create room",
 				details: error.message,
 			});
+
+			if (callback && typeof callback === "function") {
+				callback({ error: error.message });
+			}
 		}
 	});
 
