@@ -134,6 +134,7 @@ const roomHandlers = (io, socket) => {
 		}
 	});
 
+	// Delete room
 	socket.on("delete_room", async (roomId) => {
 		try {
 			// Find the room
@@ -142,6 +143,7 @@ const roomHandlers = (io, socket) => {
 			// Validate room and creator
 			if (!room) {
 				console.error("Room not found:", roomId);
+				socket.emit("error", { message: "Room not found" });
 				return;
 			}
 
@@ -151,6 +153,7 @@ const roomHandlers = (io, socket) => {
 					roomCreator: room.creator,
 					attemptedBy: socket.user._id,
 				});
+				socket.emit("error", { message: "Not authorized to delete this room" });
 				return;
 			}
 
@@ -168,6 +171,10 @@ const roomHandlers = (io, socket) => {
 			console.log("Room deleted successfully:", roomId);
 		} catch (error) {
 			console.error("Error deleting room:", error);
+			socket.emit("error", {
+				message: "Error deleting room",
+				details: error.message,
+			});
 		}
 	});
 };
