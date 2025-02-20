@@ -124,6 +124,27 @@ const roomHandlers = (io, socket) => {
 			socket.emit("error", "Failed to leave room");
 		}
 	});
+
+	socket.on("delete_room", async (roomId) => {
+		try {
+			const room = await ChatRoom.findById(roomId);
+			if (!room) return;
+
+			// Delete all messages in the room
+			await Message.deleteMany({ chatRoom: roomId });
+
+			// Delete the room itself
+			await ChatRoom.findByIdAndDelete(roomId);
+
+			// Notify all participants about the deletion
+			room.participants.forEach((participantId) => {
+				io.to(participantId.toString()).emit("room_deleted", roomId);
+			});
+		} catch (error) {
+			console.error("Error deleting room:", error);
+			socket.emit("error", "Failed to delete room");
+		}
+	});
 };
 
 module.exports = roomHandlers;
