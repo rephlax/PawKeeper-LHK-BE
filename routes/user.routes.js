@@ -86,7 +86,7 @@ router.get("/user/:userId", isAuthenticated, async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const oneUser = await UserModel.findById(userId);
+    const oneUser = await UserModel.findById(userId).populate("receivedReviews");
     console.log(oneUser)
     res.status(200).json(oneUser);
   } catch (error) {
