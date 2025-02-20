@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const ChatRoom = require("../models/Room.model");
+const Message = require("../models/Message.model");
 
 const roomHandlers = (io, socket) => {
 	// Create a new room
@@ -44,14 +45,16 @@ const roomHandlers = (io, socket) => {
 	});
 
 	// Join room
-	socket.on("join_room", async (roomId) => {
+	socket.on("join_room", async (roomId, callback) => {
 		try {
 			if (typeof roomId !== "string") {
-				throw new Error("Room ID must be a string");
+				console.error("Room ID must be a string");
+				return callback(null, { error: "Room ID must be a string" });
 			}
 
 			if (!mongoose.Types.ObjectId.isValid(roomId)) {
-				throw new Error("Invalid room ID format");
+				console.error("Invalid room ID format");
+				return callback(null, { error: "Invalid room ID format" });
 			}
 
 			const room = await ChatRoom.findById(roomId)
@@ -59,7 +62,8 @@ const roomHandlers = (io, socket) => {
 				.populate("lastMessage");
 
 			if (!room) {
-				throw new Error("Room not found");
+				console.error("Room not found:", roomId);
+				return callback(null, { error: "Room not found" });
 			}
 
 			const isParticipant = room.participants.some(
@@ -67,16 +71,21 @@ const roomHandlers = (io, socket) => {
 			);
 
 			if (!isParticipant) {
-				throw new Error("Not authorized to join this room");
+				console.error("Not authorized to join room:", {
+					roomId,
+					userId: socket.user._id,
+					participants: room.participants.map((p) => p._id),
+				});
+				return callback(null, { error: "Not authorized to join this room" });
 			}
 
 			socket.join(roomId);
 
-			socket.emit("room_joined", room);
+			callback(room, null);
 		} catch (error) {
 			console.error("Join room error:", error);
-			socket.emit("room_error", {
-				message: "Failed to join room",
+			callback(null, {
+				error: "Failed to join room",
 				details: error.message,
 			});
 		}
@@ -127,22 +136,38 @@ const roomHandlers = (io, socket) => {
 
 	socket.on("delete_room", async (roomId) => {
 		try {
+			// Find the room
 			const room = await ChatRoom.findById(roomId);
-			if (!room) return;
 
-			// Delete all messages in the room
+			// Validate room and creator
+			if (!room) {
+				console.error("Room not found:", roomId);
+				return;
+			}
+
+			// Ensure only creator can delete
+			if (room.creator.toString() !== socket.user._id.toString()) {
+				console.error("Unauthorized deletion attempt", {
+					roomCreator: room.creator,
+					attemptedBy: socket.user._id,
+				});
+				return;
+			}
+
+			// Delete associated messages
 			await Message.deleteMany({ chatRoom: roomId });
 
-			// Delete the room itself
+			// Delete the room
 			await ChatRoom.findByIdAndDelete(roomId);
 
-			// Notify all participants about the deletion
+			// Notify all participants
 			room.participants.forEach((participantId) => {
 				io.to(participantId.toString()).emit("room_deleted", roomId);
 			});
+
+			console.log("Room deleted successfully:", roomId);
 		} catch (error) {
 			console.error("Error deleting room:", error);
-			socket.emit("error", "Failed to delete room");
 		}
 	});
 };
