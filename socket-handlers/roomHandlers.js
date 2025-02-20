@@ -3,6 +3,8 @@ const ChatRoom = require("../models/Room.model");
 const Message = require("../models/Message.model");
 
 const roomHandlers = (io, socket) => {
+	console.log("Room handlers registered for socket:", socket.id);
+
 	// Create a new room
 	socket.on("create_room", async (roomData) => {
 		try {
@@ -135,7 +137,10 @@ const roomHandlers = (io, socket) => {
 	});
 
 	// Delete room
-	socket.on("delete_room", async (roomId) => {
+	socket.on("delete_room", async (roomId, callback) => {
+		console.log("Delete room request received for roomId:", roomId);
+		console.log("Request from user:", socket.user._id);
+
 		try {
 			// Find the room
 			const room = await ChatRoom.findById(roomId);
@@ -143,9 +148,20 @@ const roomHandlers = (io, socket) => {
 			// Validate room and creator
 			if (!room) {
 				console.error("Room not found:", roomId);
-				socket.emit("error", { message: "Room not found" });
+				if (callback && typeof callback === "function") {
+					callback({ success: false, error: "Room not found" });
+				} else {
+					socket.emit("error", { message: "Room not found" });
+				}
 				return;
 			}
+
+			console.log("Room creator ID (type):", typeof room.creator, room.creator);
+			console.log(
+				"Socket user ID (type):",
+				typeof socket.user._id,
+				socket.user._id
+			);
 
 			// Ensure only creator can delete
 			if (room.creator.toString() !== socket.user._id.toString()) {
@@ -153,7 +169,16 @@ const roomHandlers = (io, socket) => {
 					roomCreator: room.creator,
 					attemptedBy: socket.user._id,
 				});
-				socket.emit("error", { message: "Not authorized to delete this room" });
+				if (callback && typeof callback === "function") {
+					callback({
+						success: false,
+						error: "Not authorized to delete this room",
+					});
+				} else {
+					socket.emit("error", {
+						message: "Not authorized to delete this room",
+					});
+				}
 				return;
 			}
 
@@ -169,12 +194,20 @@ const roomHandlers = (io, socket) => {
 			});
 
 			console.log("Room deleted successfully:", roomId);
+
+			if (callback && typeof callback === "function") {
+				callback({ success: true });
+			}
 		} catch (error) {
 			console.error("Error deleting room:", error);
-			socket.emit("error", {
-				message: "Error deleting room",
-				details: error.message,
-			});
+			if (callback && typeof callback === "function") {
+				callback({ success: false, error: error.message });
+			} else {
+				socket.emit("error", {
+					message: "Error deleting room",
+					details: error.message,
+				});
+			}
 		}
 	});
 };

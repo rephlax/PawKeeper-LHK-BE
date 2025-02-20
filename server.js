@@ -10,6 +10,7 @@ const rateLimit = require("express-rate-limit");
 const LocationPin = require("./models/LocationPin.model");
 const locationSocketHandlers = require("./socket-handlers/locationHandlers");
 const express = require("express");
+const roomHandlers = require("./socket-handlers/roomHandlers");
 
 require("dotenv").config();
 const PORT = process.env.PORT || 5005;
@@ -89,6 +90,7 @@ const registerSocketHandlers = (io, socket) => {
 	io.emit("users_online", Array.from(onlineUsers.keys()));
 
 	locationSocketHandlers(io, socket);
+	roomHandlers(io, socket);
 	// Handle online users request
 	socket.on("get_online_users", () => {
 		socket.emit("users_online", Array.from(onlineUsers.keys()));
