@@ -46,8 +46,8 @@ const reviewSchema = new Schema(
 );
 
 reviewSchema.index({ reviewedUser: 1, createdAt: -1 });
-
-
+//Allow multiple reviews from one user to the same reviewed sitter
+reviewSchema.index({ creator: 1, reviewedUser: 1, title: 1, description: 1}, { unique: true });
 
 const ReviewModel = model("review", reviewSchema);
 module.exports = ReviewModel;
