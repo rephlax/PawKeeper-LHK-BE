@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const ChatRoom = require("../models/Room.model");
+const Message = require("../models/Message.model");
 
 const roomHandlers = (io, socket) => {
 	// Create a new room
