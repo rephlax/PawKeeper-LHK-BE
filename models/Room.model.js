@@ -4,11 +4,13 @@ const chatRoomSchema = new Schema({
 	name: {
 		type: String,
 		default: function () {
-			// If no name is provided, generate a default name
 			const participants = this.participants || [];
-			return participants.length === 1
-				? `Chat with User`
-				: `Group Chat (${participants.length} members)`;
+			if (participants.length === 2) {
+				return participants[1]?.username
+					? `Chat with ${participants[1].username}`
+					: "Direct Chat";
+			}
+			return `Group Chat (${participants.length} members)`;
 		},
 	},
 	type: {

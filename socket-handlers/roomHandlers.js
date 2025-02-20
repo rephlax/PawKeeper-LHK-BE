@@ -127,37 +127,95 @@ const roomHandlers = (io, socket) => {
 	});
 
 	socket.on("delete_room", async (roomId, callback) => {
-		try {
-			const room = await ChatRoom.findById(roomId);
+        console.log('Delete room request:', {
+            roomId,
+            userId: socket.user?._id,
+            socketId: socket.id
+        });
 
-			// Check if the current user is the room creator
-			if (!room || room.creator.toString() !== socket.user._id.toString()) {
-				return callback({
-					error: "Not authorized to delete this room",
-				});
-			}
+        try {
+            // Find the room with populated participants
+            const room = await ChatRoom.findById(roomId)
+                .populate('participants', 'username _id')
+                .populate('creator', 'username _id');
 
-			// Delete all messages in the room
-			await Message.deleteMany({ chatRoom: roomId });
+            // Detailed logging for room finding
+            console.log('Room details:', {
+                roomId: room?._id,
+                name: room?.name,
+                type: room?.type,
+                creator: room?.creator?._id,
+                participants: room?.participants?.map(p => p._id),
+                socketUserId: socket.user?._id
+            });
 
-			// Delete the room itself
-			await ChatRoom.findByIdAndDelete(roomId);
+            // Strict authorization checks
+            if (!room) {
+                console.error('Room not found', roomId);
+                return callback({ 
+                    error: true, 
+                    message: "Room not found" 
+                });
+            }
 
-			// Notify all participants about the deletion
-			room.participants.forEach((participantId) => {
-				io.to(participantId.toString()).emit("room_deleted", roomId);
-			});
+            // Ensure user is the creator
+            const isCreator = room.creator._id.toString() === socket.user._id.toString();
 
-			// Invoke callback with success
-			callback({ success: true });
-		} catch (error) {
-			console.error("Error deleting room:", error);
-			callback({
-				error: "Failed to delete room",
-				details: error.message,
-			});
-		}
-	});
-};
+            if (!isCreator) {
+                console.error('Unauthorized room deletion attempt', {
+                    roomCreator: room.creator._id,
+                    attemptedBy: socket.user._id
+                });
+                return callback({ 
+                    error: true, 
+                    message: "Not authorized to delete this room" 
+                });
+            }
+
+            // Delete associated messages
+            const messageDeleteResult = await Message.deleteMany({ chatRoom: roomId });
+            console.log('Messages deleted:', messageDeleteResult.deletedCount);
+
+            // Delete the room
+            const roomDeleteResult = await ChatRoom.findByIdAndDelete(roomId);
+            
+            if (!roomDeleteResult) {
+                console.error('Room deletion failed', roomId);
+                return callback({ 
+                    error: true, 
+                    message: "Failed to delete room" 
+                });
+            }
+
+            // Notify all participants
+            room.participants.forEach((participant) => {
+                io.to(participant._id.toString()).emit("room_deleted", roomId);
+            });
+
+            console.log('Room deleted successfully:', {
+                roomId,
+                deletedBy: socket.user._id
+            });
+
+            callback({ 
+                success: true, 
+                message: "Room deleted successfully" 
+            });
+
+        } catch (error) {
+            console.error('Critical error in delete_room:', {
+                error: error.message,
+                stack: error.stack,
+                roomId,
+                userId: socket.user?._id
+            });
+
+            callback({ 
+                error: true, 
+                message: "Internal server error during room deletion",
+                details: error.message 
+            });
+        }
+    });
 
 module.exports = roomHandlers;
