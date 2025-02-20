@@ -125,10 +125,16 @@ const roomHandlers = (io, socket) => {
 		}
 	});
 
-	socket.on("delete_room", async (roomId) => {
+	socket.on("delete_room", async (roomId, callback) => {
 		try {
 			const room = await ChatRoom.findById(roomId);
-			if (!room) return;
+
+			// Check if the current user is the room creator
+			if (!room || room.creator.toString() !== socket.user._id.toString()) {
+				return callback({
+					error: "Not authorized to delete this room",
+				});
+			}
 
 			// Delete all messages in the room
 			await Message.deleteMany({ chatRoom: roomId });
@@ -140,9 +146,15 @@ const roomHandlers = (io, socket) => {
 			room.participants.forEach((participantId) => {
 				io.to(participantId.toString()).emit("room_deleted", roomId);
 			});
+
+			// Invoke callback with success
+			callback({ success: true });
 		} catch (error) {
 			console.error("Error deleting room:", error);
-			socket.emit("error", "Failed to delete room");
+			callback({
+				error: "Failed to delete room",
+				details: error.message,
+			});
 		}
 	});
 };
