@@ -134,96 +134,40 @@ const roomHandlers = (io, socket) => {
 		}
 	});
 
-	socket.on("delete_room", async (roomId, callback) => {
-		console.log("Delete room request:", {
-			roomId,
-			userId: socket.user?._id,
-			socketId: socket.id,
-			socketConnected: socket.connected,
-		});
-
+	socket.on("delete_room", async (roomId) => {
 		try {
-			console.log("Attempting to find room:", roomId);
+			// Find the room
+			const room = await ChatRoom.findById(roomId);
 
-			// Find the room with populated participants
-			const room = await ChatRoom.findById(roomId)
-				.populate("participants", "username _id")
-				.populate("creator", "username _id");
-
-			console.log("Room found:", {
-				exists: !!room,
-				creator: room?.creator?._id,
-				socketUserId: socket.user?._id,
-			});
-
-			// Strict authorization checks
+			// Validate room and creator
 			if (!room) {
-				console.error("Room not found", roomId);
-				return callback({
-					error: true,
-					message: "Room not found",
-				});
+				console.error("Room not found:", roomId);
+				return;
 			}
 
-			// Ensure user is the creator
-			const isCreator =
-				room.creator._id.toString() === socket.user._id.toString();
-
-			if (!isCreator) {
-				console.error("Unauthorized room deletion attempt", {
-					roomCreator: room.creator._id,
+			// Ensure only creator can delete
+			if (room.creator.toString() !== socket.user._id.toString()) {
+				console.error("Unauthorized deletion attempt", {
+					roomCreator: room.creator,
 					attemptedBy: socket.user._id,
 				});
-				return callback({
-					error: true,
-					message: "Not authorized to delete this room",
-				});
+				return;
 			}
 
 			// Delete associated messages
-			const messageDeleteResult = await Message.deleteMany({
-				chatRoom: roomId,
-			});
-			console.log("Messages deleted:", messageDeleteResult.deletedCount);
+			await Message.deleteMany({ chatRoom: roomId });
 
 			// Delete the room
-			const roomDeleteResult = await ChatRoom.findByIdAndDelete(roomId);
-
-			if (!roomDeleteResult) {
-				console.error("Room deletion failed", roomId);
-				return callback({
-					error: true,
-					message: "Failed to delete room",
-				});
-			}
+			await ChatRoom.findByIdAndDelete(roomId);
 
 			// Notify all participants
-			room.participants.forEach((participant) => {
-				io.to(participant._id.toString()).emit("room_deleted", roomId);
+			room.participants.forEach((participantId) => {
+				io.to(participantId.toString()).emit("room_deleted", roomId);
 			});
 
-			console.log("Room deleted successfully:", {
-				roomId,
-				deletedBy: socket.user._id,
-			});
-
-			callback({
-				success: true,
-				message: "Room deleted successfully",
-			});
+			console.log("Room deleted successfully:", roomId);
 		} catch (error) {
-			console.error("Critical error in delete_room:", {
-				error: error.message,
-				stack: error.stack,
-				roomId,
-				userId: socket.user?._id,
-			});
-
-			callback({
-				error: true,
-				message: "Internal server error during room deletion",
-				details: error.message,
-			});
+			console.error("Error deleting room:", error);
 		}
 	});
 };
