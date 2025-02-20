@@ -7,40 +7,33 @@ const roomHandlers = (io, socket) => {
 		try {
 			const { name, type, participants } = roomData;
 
-			// Default name to be given for the private chat (NOT USED CURRENTLY)
-			const defaultName =
-				participants.length === 1
-					? `Chat with ${socket.user.username}`
-					: `Group Chat (${participants.length + 1} members)`;
-
-			// Validate type
-			const validTypes = ["direct", "group"];
-			const roomType = validTypes.includes(type) ? type : "direct";
-
 			const newRoom = await ChatRoom.create({
 				name,
-				type: roomType,
+				type: type || "direct",
 				participants: [socket.user._id, ...participants],
 				creator: socket.user._id,
 				isActive: true,
 				lastActive: new Date(),
 			});
 
-			// Join the room yourself
-			socket.join(newRoom._id);
+			const populatedRoom = await newRoom.populate("participants");
 
-			// Notify other participants
+			// Join the room yourself
+			socket.join(newRoom._id.toString());
+
+			// Notify and join other participants
 			participants.forEach((participantId) => {
-				io.to(participantId).emit("room_invitation", {
-					roomId: newRoom._id,
-					roomName: newRoom.name,
-					invitedBy: socket.user.username,
-					invitedById: socket.user._id,
-				});
+				io.to(participantId.toString()).join(newRoom._id.toString());
+				io.to(participantId.toString()).emit("room_joined", populatedRoom);
 			});
 
 			// Send room details back to creator
-			socket.emit("room_created", await newRoom.populate("participants"));
+			socket.emit("room_created", populatedRoom);
+
+			// Update rooms list for all participants
+			[...participants, socket.user._id].forEach((userId) => {
+				io.to(userId.toString()).emit("get_rooms");
+			});
 		} catch (error) {
 			console.error("Room creation error:", error);
 			socket.emit("error", {
