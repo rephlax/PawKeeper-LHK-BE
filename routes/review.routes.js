@@ -54,17 +54,17 @@ router.post("/:userId", isAuthenticated, async (req, res) => {
 			return res.status(400).json({ message: "Cannot review yourself" });
 		}
 
-		// Check for existing review
-		const existingReview = await ReviewModel.findOne({
-			creator: creatorId,
-			reviewedUser: userId,
-		});
+		// // Check for existing review
+		// const existingReview = await ReviewModel.findOne({
+		// 	creator: creatorId,
+		// 	reviewedUser: userId,
+		// });
 
-		if (existingReview) {
-			return res
-				.status(400)
-				.json({ message: "You have already reviewed this user" });
-		}
+		// if (existingReview) {
+		// 	return res
+		// 		.status(400)
+		// 		.json({ message: "You have already reviewed this user" });
+		// }
 
 		// Validate input
 		if (
