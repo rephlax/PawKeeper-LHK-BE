@@ -1,3 +1,4 @@
+// Message.model.js
 const {Schema, model} = require('mongoose');
 
 const messageSchema = new Schema({
@@ -20,6 +21,14 @@ const messageSchema = new Schema({
     read: {
         type: Boolean,
         default: false
+    },
+    isDeleted: {
+        type: Boolean,
+        default: false
+    },
+    lastEdited: {
+        type: Date,
+        default: null
     }
 });
 
